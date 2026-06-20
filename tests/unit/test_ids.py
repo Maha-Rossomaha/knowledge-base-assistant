@@ -37,8 +37,15 @@ def test_content_hash_depends_on_content() -> None:
 
 
 def test_chunk_id_depends_on_section_path() -> None:
-    first = make_chunk_id("doc-1", ("A", "B"), "content")
-    second = make_chunk_id("doc-1", ("A", "C"), "content")
+    first = make_chunk_id("doc-1", ("A", "B"), 0, "content")
+    second = make_chunk_id("doc-1", ("A", "C"), 0, "content")
+
+    assert first != second
+    
+
+def test_chunk_id_depends_on_chunk_index() -> None:
+    first = make_chunk_id("doc-1", ("A", "B"), 0, "content")
+    second = make_chunk_id("doc-1", ("A", "B"), 1, "content")
 
     assert first != second
 
