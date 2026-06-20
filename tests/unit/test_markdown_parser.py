@@ -26,6 +26,7 @@ def test_parser_parses_single_heading() -> None:
     assert sections[0].section_path == ("RAG",)
     assert sections[0].content == "Введение."
     assert sections[0].start_line == 1
+    assert sections[0].content_start_line == 3
     assert sections[0].end_line == 3
 
 
@@ -86,6 +87,7 @@ def test_parser_handles_document_without_headings() -> None:
     assert sections[0].section_path == ()
     assert sections[0].content == "Первая строка.\nВторая строка."
     assert sections[0].start_line == 1
+    assert sections[0].content_start_line == 1
     assert sections[0].end_line == 2
 
 
@@ -101,9 +103,11 @@ def test_parser_keeps_empty_sections() -> None:
     sections = parse_markdown_sections(document)
 
     assert sections[0].section_path == ("RAG",)
+    assert sections[0].content_start_line is None
     assert sections[0].content == ""
 
     assert sections[1].section_path == ("RAG", "Chunking")
+    assert sections[1].content_start_line is None
     assert sections[1].content == ""
 
     assert sections[2].section_path == (
@@ -111,6 +115,7 @@ def test_parser_keeps_empty_sections() -> None:
         "Chunking",
         "Semantic chunking",
     )
+    assert sections[2].content_start_line == 5
     assert sections[2].content == "Подробности."
 
 
@@ -146,10 +151,27 @@ def test_parser_sets_correct_line_ranges() -> None:
     sections = parse_markdown_sections(document)
 
     assert sections[0].start_line == 1
+    assert sections[0].content_start_line == 3
     assert sections[0].end_line == 3
 
     assert sections[1].start_line == 4
+    assert sections[1].content_start_line == 6
     assert sections[1].end_line == 6
+    
+
+def test_parser_skips_leading_empty_lines_when_setting_content_start_line() -> None:
+    document = make_document(
+        "# Heading\n"
+        "\n"
+        "\n"
+        "Content."
+    )
+
+    sections = parse_markdown_sections(document)
+
+    assert sections[0].start_line == 1
+    assert sections[0].content_start_line == 4
+    assert sections[0].end_line == 4
 
 
 def test_parser_returns_empty_list_for_empty_document() -> None:
