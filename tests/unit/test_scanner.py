@@ -85,8 +85,18 @@ def test_custom_config_allows_txt_files(tmp_path: Path) -> None:
     config = ScannerConfig(
         included_extensions=frozenset({".txt"}),
         excluded_dir_names=frozenset(),
+        excluded_file_patterns=tuple()
     )
 
     documents = scan_documents(tmp_path, source_name="test-source", config=config)
 
     assert [document.relative_path for document in documents] == ["note.txt"]
+
+
+def test_scanner_ignores_files_matching_excluded_pattern(tmp_path: Path) -> None:
+    (tmp_path / "1_plan.md").write_text("# Plan", encoding="utf-8")
+    (tmp_path / "note.md").write_text("# Note", encoding="utf-8")
+
+    documents = scan_documents(tmp_path, source_name="test-source")
+
+    assert [document.relative_path for document in documents] == ["note.md"]
