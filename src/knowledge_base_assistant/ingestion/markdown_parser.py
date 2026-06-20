@@ -108,10 +108,36 @@ def _make_section(
     start_line: int,
     end_line: int,
 ) -> MarkdownSection:
+    first_content_line = start_line + 1 if section_path else start_line
+
+    leading_empty_lines = 0
+    while (
+        leading_empty_lines < len(content_lines)
+        and not content_lines[leading_empty_lines].strip()
+    ):
+        leading_empty_lines += 1
+
+    trailing_index = len(content_lines)
+    while (
+        trailing_index > leading_empty_lines
+        and not content_lines[trailing_index - 1].strip()
+    ):
+        trailing_index -= 1
+
+    trimmed_lines = content_lines[leading_empty_lines:trailing_index]
+
+    if trimmed_lines:
+        content_start_line = first_content_line + leading_empty_lines
+        section_end_line = content_start_line + len(trimmed_lines) - 1
+    else:
+        content_start_line = None
+        section_end_line = start_line
+
     return MarkdownSection(
         document_id=document.document_id,
         section_path=section_path,
-        content="\n".join(content_lines).strip("\n"),
+        content="\n".join(trimmed_lines),
         start_line=start_line,
-        end_line=max(start_line, end_line),
+        content_start_line=content_start_line,
+        end_line=min(section_end_line, end_line),
     )
