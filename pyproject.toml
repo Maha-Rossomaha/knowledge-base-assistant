@@ -1,0 +1,42 @@
+[project]
+name = "knowledge-base-assistant"
+version = "0.1.0"
+description = "Assistant for searching and answering questions over a personal knowledge base."
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+dependencies = []
+
+[build-system]
+requires = ["uv_build>=0.11.23,<0.12"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "mypy>=1.15",
+    "pytest>=8.0",
+    "pytest-cov>=6.0",
+    "ruff>=0.11",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",
+    "F",
+    "I",
+    "UP",
+    "B",
+]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+packages = ["assistant"]
+mypy_path = "src"
