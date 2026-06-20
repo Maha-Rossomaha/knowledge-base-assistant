@@ -28,3 +28,12 @@ class Chunk:
     end_line: int
 
     content_hash: str
+    
+
+@dataclass(frozen=True, slots=True)
+class MarkdownSection:
+    document_id: str
+    section_path: tuple[str, ...]
+    content: str
+    start_line: int
+    end_line: int
