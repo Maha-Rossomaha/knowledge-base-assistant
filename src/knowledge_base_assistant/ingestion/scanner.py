@@ -14,7 +14,8 @@ from knowledge_base_assistant.domain.models import Document
 class ScannerConfig:
     included_extensions: frozenset[str]
     excluded_dir_names: frozenset[str]
-
+    excluded_file_patterns: tuple[str, ...]
+    
 
 DEFAULT_SCANNER_CONFIG = ScannerConfig(
     included_extensions=frozenset({".md"}),
@@ -32,12 +33,14 @@ DEFAULT_SCANNER_CONFIG = ScannerConfig(
             ".ipynb_checkpoints",
             ".runtime",
             ".cache",
+            ".clinerules",
             "qdrant_storage",
             "node_modules",
             "data",
             "0 images",
         }
     ),
+    excluded_file_patterns=("*_plan*.md",)
 )
 
 
@@ -84,6 +87,9 @@ def _iter_source_files(root: Path, config: ScannerConfig) -> Iterable[Path]:
             continue
 
         if path.suffix.lower() not in config.included_extensions:
+            continue
+        
+        if any(path.match(pattern) for pattern in config.excluded_file_patterns):
             continue
 
         paths.append(path)
