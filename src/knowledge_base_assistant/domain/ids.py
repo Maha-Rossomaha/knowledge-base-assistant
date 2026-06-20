@@ -36,6 +36,7 @@ def make_content_hash(content: str) -> str:
 def make_chunk_id(
     document_id: str,
     section_path: tuple[str, ...],
+    chunk_index: int,
     content: str,
 ) -> str:
-    return stable_hash(document_id, *section_path, content)
+    return stable_hash(document_id, *section_path, str(chunk_index), content)

@@ -16,17 +16,13 @@ class Chunk:
     document_id: str
     source_name: str
     relative_path: str
-
     title: str | None
     section_path: tuple[str, ...]
-
     content: str
     searchable_text: str
-
     chunk_index: int
     start_line: int
     end_line: int
-
     content_hash: str
     
 
@@ -36,4 +32,5 @@ class MarkdownSection:
     section_path: tuple[str, ...]
     content: str
     start_line: int
+    content_start_line: int | None
     end_line: int
