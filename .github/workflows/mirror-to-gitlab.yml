@@ -1,0 +1,41 @@
+name: Mirror to GitLab
+
+on:
+  push:
+    branches:
+      - "**"
+    tags:
+      - "**"
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Clone GitHub repository
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git clone --mirror \
+            "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" \
+            repository.git
+
+      - name: Push branches and tags to GitLab
+        env:
+          GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
+        run: |
+          cd repository.git
+
+          git remote add gitlab \
+            "https://oauth2:${GITLAB_TOKEN}@gitlab.com/maha_ef/knowledge-base-assistant.git"
+
+          git push --force --prune gitlab \
+            "refs/heads/*:refs/heads/*"
+
+          git push --force --prune gitlab \
+            "refs/tags/*:refs/tags/*"
