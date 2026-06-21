@@ -41,6 +41,22 @@ class ChunkerConfig:
 DEFAULT_CHUNKER_CONFIG = ChunkerConfig()
 
 
+def _is_separator_only(content: str) -> bool:
+    stripped_lines = [
+        line.strip()
+        for line in content.splitlines()
+        if line.strip()
+    ]
+
+    if not stripped_lines:
+        return True
+
+    return all(
+        line in {"---", "***", "___"}
+        for line in stripped_lines
+    )
+
+
 def chunk_sections(
     document: Document,
     sections: list[MarkdownSection],
@@ -56,12 +72,12 @@ def chunk_sections(
             )
 
         section_chunks = _chunk_section_content(section, config)
+        section_chunk_index = 0
+        
+        for content, start_line, end_line in section_chunks:
+            if _is_separator_only(content):
+                continue
 
-        for section_chunk_index, (
-            content,
-            start_line,
-            end_line,
-        ) in enumerate(section_chunks):
             searchable_text = _make_searchable_text(
                 section_path=section.section_path,
                 content=content,
@@ -95,6 +111,7 @@ def chunk_sections(
             )
 
             chunk_index += 1
+            section_chunk_index += 1
 
     return chunks
 
