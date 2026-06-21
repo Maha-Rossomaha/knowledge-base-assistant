@@ -1,5 +1,4 @@
 import json
-from collections.abc import Sequence
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any
@@ -53,7 +52,6 @@ def read_chunks_jsonl(path: Path) -> list[Chunk]:
 
 def read_golden_queries_jsonl(
     path: Path,
-    chunks_path: Path | None = None,
 ) -> list[GoldenQuery]:
     queries: list[GoldenQuery] = []
 
@@ -76,59 +74,7 @@ def read_golden_queries_jsonl(
 
             queries.append(query)
 
-    reference_chunks = read_chunks_jsonl(chunks_path) if chunks_path is not None else ()
-    validate_golden_queries(queries, reference_chunks)
-
     return queries
-
-
-def validate_golden_queries(
-    queries: Sequence[GoldenQuery],
-    chunks: Sequence[Chunk] = (),
-) -> None:
-    seen_query_ids: set[str] = set()
-    chunks_by_id = {chunk.chunk_id: chunk for chunk in chunks}
-
-    for query in queries:
-        if not query.query_id.strip():
-            raise ValueError("query_id must not be empty")
-        if not query.query.strip():
-            raise ValueError(f"query must not be empty for {query.query_id}")
-        if query.query_id in seen_query_ids:
-            raise ValueError(f"Duplicate query_id: {query.query_id}")
-        seen_query_ids.add(query.query_id)
-
-        seen_chunk_ids: set[str] = set()
-        for relevant_chunk in query.relevant_chunks:
-            if relevant_chunk.relevance not in {1, 2}:
-                raise ValueError(
-                    f"Invalid relevance for {query.query_id}: "
-                    f"{relevant_chunk.relevance}"
-                )
-            if relevant_chunk.chunk_id in seen_chunk_ids:
-                raise ValueError(
-                    f"Duplicate chunk_id for {query.query_id}: "
-                    f"{relevant_chunk.chunk_id}"
-                )
-            seen_chunk_ids.add(relevant_chunk.chunk_id)
-
-            if chunks_by_id:
-                actual_chunk = chunks_by_id.get(relevant_chunk.chunk_id)
-                if actual_chunk is None:
-                    raise ValueError(
-                        f"Unknown chunk_id for {query.query_id}: "
-                        f"{relevant_chunk.chunk_id}"
-                    )
-                if relevant_chunk.relative_path != actual_chunk.relative_path:
-                    raise ValueError(
-                        f"relative_path mismatch for {query.query_id}, "
-                        f"chunk {relevant_chunk.chunk_id}"
-                    )
-                if relevant_chunk.section_path != actual_chunk.section_path:
-                    raise ValueError(
-                        f"section_path mismatch for {query.query_id}, "
-                        f"chunk {relevant_chunk.chunk_id}"
-                    )
 
 
 def _chunk_from_dict(data: Any) -> Chunk:

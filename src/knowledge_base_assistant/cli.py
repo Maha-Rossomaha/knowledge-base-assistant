@@ -6,6 +6,7 @@ import typer
 from knowledge_base_assistant.application.indexing import build_chunks
 from knowledge_base_assistant.application.statistics import calculate_chunk_statistics_from_jsonl
 from knowledge_base_assistant.ingestion.chunker import ChunkerConfig
+from knowledge_base_assistant.application.golden_validation import validate_golden_files
 
 app = typer.Typer(
     name="copilot",
@@ -250,3 +251,62 @@ def stats(
                 f"   Size: {chunk.char_count} chars, "
                 f"{chunk.line_count} lines"
             )
+            
+
+@app.command("validate-golden")
+def validate_golden(
+    golden_path: Annotated[
+        Path,
+        typer.Argument(
+            help="Path to the golden queries JSONL file.",
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+            readable=True,
+            resolve_path=True,
+        ),
+    ],
+    chunks_path: Annotated[
+        Path,
+        typer.Argument(
+            help="Path to the chunks JSONL file.",
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+            readable=True,
+            resolve_path=True,
+        ),
+    ],
+) -> None:
+    """Validate a golden retrieval dataset against chunks."""
+
+    try:
+        result = validate_golden_files(
+            golden_path=golden_path,
+            chunks_path=chunks_path,
+        )
+    except (ValueError, OSError) as error:
+        typer.secho(
+            f"Golden validation failed: {error}",
+            fg=typer.colors.RED,
+            err=True,
+        )
+        raise typer.Exit(code=1) from error
+
+    typer.secho(
+        "Golden dataset is valid.",
+        fg=typer.colors.GREEN,
+    )
+    typer.echo(f"Queries: {result.query_count}")
+    typer.echo(
+        f"Answerable queries: "
+        f"{result.answerable_query_count}"
+    )
+    typer.echo(
+        f"No-answer queries: "
+        f"{result.no_answer_query_count}"
+    )
+    typer.echo(
+        f"Relevance judgments: "
+        f"{result.relevance_judgment_count}"
+    )
