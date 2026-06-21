@@ -13,6 +13,11 @@ app = typer.Typer(
 )
 
 
+@app.callback()
+def main() -> None:
+    """Knowledge-base assistant CLI."""
+
+
 @app.command()
 def index(
     repository: Annotated[
@@ -102,7 +107,3 @@ def index(
     typer.echo(f"Sections: {result.section_count}")
     typer.echo(f"Chunks: {result.chunk_count}")
     typer.echo(f"Output: {result.output_path}")
-
-
-if __name__ == "__main__":
-    app()
