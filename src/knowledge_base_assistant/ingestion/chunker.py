@@ -190,9 +190,6 @@ def _find_chunk_end(
         if limit_reached and fence_character is None:
             break
 
-    if end_index == start_index:
-        return start_index + 1
-
     return end_index
 
 
