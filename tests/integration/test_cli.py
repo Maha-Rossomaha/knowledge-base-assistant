@@ -342,3 +342,87 @@ def test_stats_command_reports_invalid_jsonl(
     assert result.exit_code == 1
     assert "Statistics failed" in result.output
     assert "Invalid JSONL at line 1" in result.output
+    
+    
+def test_validate_golden_command(
+    tmp_path: Path,
+) -> None:
+    chunks_path = tmp_path / "chunks.jsonl"
+    golden_path = tmp_path / "golden.jsonl"
+
+    chunk = make_statistics_chunk(
+        chunk_id="chunk-1",
+        relative_path="notes/bm25.md",
+        section_path=("BM25",),
+        content="BM25 is a ranking function.",
+    )
+
+    write_chunks_jsonl(
+        [chunk],
+        chunks_path,
+    )
+
+    golden_path.write_text(
+        (
+            '{"query_id":"q001","query":"What is BM25?",'
+            '"relevant_chunks":[{"chunk_id":"chunk-1",'
+            '"relative_path":"notes/bm25.md",'
+            '"section_path":["BM25"],'
+            '"relevance":2}],'
+            '"notes":"Definition"}\n'
+        ),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "validate-golden",
+            str(golden_path),
+            str(chunks_path),
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "Golden dataset is valid." in result.output
+    assert "Queries: 1" in result.output
+    assert "Answerable queries: 1" in result.output
+    assert "No-answer queries: 0" in result.output
+    assert "Relevance judgments: 1" in result.output
+    
+    
+def test_validate_golden_reports_unknown_chunk(
+    tmp_path: Path,
+) -> None:
+    chunks_path = tmp_path / "chunks.jsonl"
+    golden_path = tmp_path / "golden.jsonl"
+
+    write_chunks_jsonl(
+        [make_statistics_chunk()],
+        chunks_path,
+    )
+
+    golden_path.write_text(
+        (
+            '{"query_id":"q001","query":"Query",'
+            '"relevant_chunks":[{"chunk_id":"missing",'
+            '"relative_path":"notes/test.md",'
+            '"section_path":["Heading"],'
+            '"relevance":2}],'
+            '"notes":""}\n'
+        ),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "validate-golden",
+            str(golden_path),
+            str(chunks_path),
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "Golden validation failed" in result.output
+    assert "unknown chunk_id" in result.output
