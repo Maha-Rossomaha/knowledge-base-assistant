@@ -117,11 +117,37 @@ def _chunk_section_content(
         )
 
         chunk_lines = lines[start_index:end_index]
-        content = "\n".join(chunk_lines).strip()
 
-        if content:
-            start_line = section.content_start_line + start_index
-            end_line = section.content_start_line + end_index - 1
+        leading_empty_lines = 0
+        while (
+            leading_empty_lines < len(chunk_lines)
+            and not chunk_lines[leading_empty_lines].strip()
+        ):
+            leading_empty_lines += 1
+
+        trailing_index = len(chunk_lines)
+        while (
+            trailing_index > leading_empty_lines
+            and not chunk_lines[trailing_index - 1].strip()
+        ):
+            trailing_index -= 1
+
+        trimmed_lines = chunk_lines[leading_empty_lines:trailing_index]
+
+        if trimmed_lines:
+            content = "\n".join(trimmed_lines)
+
+            start_line = (
+                section.content_start_line
+                + start_index
+                + leading_empty_lines
+            )
+            end_line = (
+                section.content_start_line
+                + start_index
+                + trailing_index
+                - 1
+            )
 
             chunks.append((content, start_line, end_line))
 
