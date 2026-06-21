@@ -3,10 +3,10 @@ from typing import Annotated
 
 import typer
 
+from knowledge_base_assistant.application.golden_validation import validate_golden_files
 from knowledge_base_assistant.application.indexing import build_chunks
 from knowledge_base_assistant.application.statistics import calculate_chunk_statistics_from_jsonl
 from knowledge_base_assistant.ingestion.chunker import ChunkerConfig
-from knowledge_base_assistant.application.golden_validation import validate_golden_files
 
 app = typer.Typer(
     name="copilot",
