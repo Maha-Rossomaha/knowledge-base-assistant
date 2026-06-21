@@ -6,6 +6,7 @@ from knowledge_base_assistant.domain.models import (
 )
 from knowledge_base_assistant.ingestion.chunker import (
     ChunkerConfig,
+    _is_separator_only,
     chunk_sections,
 )
 
@@ -550,3 +551,89 @@ def test_chunker_removes_trailing_empty_lines_from_chunk() -> None:
     assert chunks[1].content == "line 5"
     assert chunks[1].start_line == 14
     assert chunks[1].end_line == 14
+    
+    
+def test_separator_only_section_does_not_create_chunk() -> None:
+    document = make_document(content="---")
+
+    section = MarkdownSection(
+        document_id=document.document_id,
+        section_path=("Section",),
+        content="---",
+        start_line=1,
+        content_start_line=1,
+        end_line=1,
+    )
+
+    chunks = chunk_sections(
+        document,
+        [section],
+        ChunkerConfig(),
+    )
+
+    assert chunks == []
+    
+    
+def test_short_meaningful_content_is_preserved() -> None:
+    document = make_document(content="GQA")
+
+    section = MarkdownSection(
+        document_id=document.document_id,
+        section_path=("Attention",),
+        content="GQA",
+        start_line=1,
+        content_start_line=1,
+        end_line=1,
+    )
+
+    chunks = chunk_sections(
+        document,
+        [section],
+        ChunkerConfig(),
+    )
+
+    assert len(chunks) == 1
+    assert chunks[0].content == "GQA"
+    
+
+def test_separator_does_not_consume_section_chunk_index() -> None:
+    document = make_document(
+        content="---\n\nuseful content",
+    )
+
+    section = MarkdownSection(
+        document_id=document.document_id,
+        section_path=("Section",),
+        content="---\n\nuseful content",
+        start_line=1,
+        content_start_line=1,
+        end_line=3,
+    )
+
+    chunks = chunk_sections(
+        document,
+        [section],
+        ChunkerConfig(
+            max_lines=1,
+            max_chars=100,
+            overlap_lines=0,
+        ),
+    )
+
+    assert len(chunks) == 1
+    assert chunks[0].content == "useful content"
+    assert chunks[0].chunk_index == 0
+    assert chunks[0].section_chunk_index == 0
+    
+    
+@pytest.mark.parametrize(
+    "content",
+    [
+        "",
+        "   ",
+        "\n\n",
+        " \n\t\n ",
+    ],
+)
+def test_blank_content_is_separator_only(content: str) -> None:
+    assert _is_separator_only(content) is True
