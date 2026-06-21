@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-
 from knowledge_base_assistant.ingestion.chunker import (
     ChunkerConfig,
     chunk_sections,
