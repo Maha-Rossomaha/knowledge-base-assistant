@@ -229,11 +229,12 @@ def test_stats_command_displays_chunk_statistics(
     assert "Chunks over 2 lines: 1" in result.output
 
     assert "Largest chunks:" in result.output
+    assert "Smallest chunks:" in result.output
     assert "notes/code.md" in result.output
     assert "Python > Example" in result.output
 
 
-def test_stats_command_with_zero_largest_limit_hides_largest_chunks(
+def test_stats_command_with_zero_limits_hides_chunk_lists(
     tmp_path: Path,
 ) -> None:
     chunks_path = tmp_path / "chunks.jsonl"
@@ -250,12 +251,15 @@ def test_stats_command_with_zero_largest_limit_hides_largest_chunks(
             str(chunks_path),
             "--largest-limit",
             "0",
+            "--smallest-limit",
+            "0",
         ],
     )
 
     assert result.exit_code == 0, result.output
     assert "Chunks: 1" in result.output
     assert "Largest chunks:" not in result.output
+    assert "Smallest chunks:" not in result.output
 
 
 def test_stats_command_handles_empty_jsonl(

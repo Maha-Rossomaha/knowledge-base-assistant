@@ -59,7 +59,8 @@ def test_empty_chunks_return_zero_statistics() -> None:
     assert statistics.chunks_over_max_chars == 0
     assert statistics.chunks_over_max_lines == 0
     assert statistics.largest_chunks == ()
-
+    assert statistics.smallest_chunks == ()
+    
 
 def test_calculates_character_statistics() -> None:
     chunks = [
@@ -330,6 +331,10 @@ def test_largest_limit_zero_returns_no_largest_chunks() -> None:
             {"largest_limit": -1},
             "largest_limit must be non-negative",
         ),
+        (
+            {"smallest_limit": -1},
+            "smallest_limit must be non-negative",
+        ),
     ],
 )
 def test_invalid_statistics_parameters_raise_error(
@@ -408,3 +413,41 @@ def test_empty_chunk_content_has_zero_lines() -> None:
     assert statistics.min_line_count == 0
     assert statistics.average_line_count == 0.0
     assert statistics.max_line_count == 0
+    
+    
+def test_smallest_chunks_are_sorted_by_character_count() -> None:
+    chunks = [
+        make_chunk(
+            chunk_id="medium",
+            content="abcdef",
+        ),
+        make_chunk(
+            chunk_id="small",
+            content="abc",
+            chunk_index=1,
+        ),
+        make_chunk(
+            chunk_id="large",
+            content="abcdefghij",
+            chunk_index=2,
+        ),
+    ]
+
+    statistics = calculate_chunk_statistics(
+        chunks,
+        smallest_limit=2,
+    )
+
+    assert [chunk.chunk_id for chunk in statistics.smallest_chunks] == [
+        "small",
+        "medium",
+    ]
+    
+
+def test_smallest_limit_zero_returns_no_smallest_chunks() -> None:
+    statistics = calculate_chunk_statistics(
+        [make_chunk()],
+        smallest_limit=0,
+    )
+
+    assert statistics.smallest_chunks == ()
