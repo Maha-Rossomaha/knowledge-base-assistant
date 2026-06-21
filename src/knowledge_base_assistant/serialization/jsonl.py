@@ -72,6 +72,7 @@ def _chunk_from_dict(data: Any) -> Chunk:
         content=data["content"],
         searchable_text=data["searchable_text"],
         chunk_index=data["chunk_index"],
+        section_chunk_index=data["section_chunk_index"],
         start_line=data["start_line"],
         end_line=data["end_line"],
         content_hash=data["content_hash"],

@@ -21,6 +21,7 @@ class Chunk:
     content: str
     searchable_text: str
     chunk_index: int
+    section_chunk_index: int
     start_line: int
     end_line: int
     content_hash: str

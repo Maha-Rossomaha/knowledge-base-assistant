@@ -57,7 +57,11 @@ def chunk_sections(
 
         section_chunks = _chunk_section_content(section, config)
 
-        for content, start_line, end_line in section_chunks:
+        for section_chunk_index, (
+            content,
+            start_line,
+            end_line,
+        ) in enumerate(section_chunks):
             searchable_text = _make_searchable_text(
                 section_path=section.section_path,
                 content=content,
@@ -68,7 +72,7 @@ def chunk_sections(
                     chunk_id=make_chunk_id(
                         document_id=document.document_id,
                         section_path=section.section_path,
-                        chunk_index=chunk_index,
+                        section_chunk_index=section_chunk_index,
                         content=content,
                     ),
                     document_id=document.document_id,
@@ -84,6 +88,7 @@ def chunk_sections(
                     searchable_text=searchable_text,
                     chunk_index=chunk_index,
                     start_line=start_line,
+                    section_chunk_index=section_chunk_index,
                     end_line=end_line,
                     content_hash=make_content_hash(content),
                 )
