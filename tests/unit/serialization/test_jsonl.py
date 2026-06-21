@@ -18,6 +18,7 @@ def make_chunk(
     content: str = "Chunk content",
     searchable_text: str = "RAG > Chunking\n\nChunk content",
     chunk_index: int = 0,
+    section_chunk_index: int = 0,
     start_line: int = 10,
     end_line: int = 10,
 ) -> Chunk:
@@ -31,6 +32,7 @@ def make_chunk(
         content=content,
         searchable_text=searchable_text,
         chunk_index=chunk_index,
+        section_chunk_index=section_chunk_index,
         start_line=start_line,
         end_line=end_line,
         content_hash=f"hash-{chunk_id}",
@@ -49,6 +51,7 @@ def test_write_and_read_chunks_round_trip(tmp_path: Path) -> None:
             content="BM25 content",
             searchable_text="Search > BM25\n\nBM25 content",
             chunk_index=1,
+            section_chunk_index=0,
             start_line=20,
             end_line=21,
         ),

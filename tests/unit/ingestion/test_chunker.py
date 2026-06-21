@@ -495,3 +495,58 @@ def test_different_fence_marker_inside_code_block_does_not_close_it() -> None:
         "```"
     )
     assert chunks[1].content == "After"
+    
+
+def test_section_chunk_indexes_restart_for_each_section() -> None:
+    document = make_document()
+
+    first_section = make_section(
+        "a\nb",
+        section_path=("First",),
+    )
+    second_section = make_section(
+        "c\nd",
+        section_path=("Second",),
+    )
+
+    config = ChunkerConfig(
+        max_lines=1,
+        max_chars=1_000,
+        overlap_lines=0,
+    )
+
+    chunks = chunk_sections(
+        document,
+        [first_section, second_section],
+        config,
+    )
+
+    assert [chunk.chunk_index for chunk in chunks] == [0, 1, 2, 3]
+    assert [chunk.section_chunk_index for chunk in chunks] == [0, 1, 0, 1]
+    
+
+def test_chunker_removes_trailing_empty_lines_from_chunk() -> None:
+    document = make_document()
+    section = make_section(
+        "line 1\n"
+        "line 2\n"
+        "\n"
+        "\n"
+        "line 5",
+        content_start_line=10,
+    )
+    config = ChunkerConfig(
+        max_lines=4,
+        max_chars=1_000,
+        overlap_lines=0,
+    )
+
+    chunks = chunk_sections(document, [section], config)
+
+    assert chunks[0].content == "line 1\nline 2"
+    assert chunks[0].start_line == 10
+    assert chunks[0].end_line == 11
+
+    assert chunks[1].content == "line 5"
+    assert chunks[1].start_line == 14
+    assert chunks[1].end_line == 14

@@ -112,6 +112,7 @@ def test_markdown_file_passes_through_full_ingestion_pipeline(
     restored_chunks = read_chunks_jsonl(jsonl_path)
 
     assert restored_chunks == chunks
+    assert [chunk.section_chunk_index for chunk in chunks] == [0, 0, 1]
 
 
 def test_code_fence_remains_whole_in_full_ingestion_pipeline(

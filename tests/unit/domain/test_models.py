@@ -42,6 +42,7 @@ def test_chunk_can_be_created() -> None:
         content="Chunk text",
         searchable_text="RAG > Chunking\n\nChunk text",
         chunk_index=0,
+        section_chunk_index=0,
         start_line=1,
         end_line=10,
         content_hash="hash-2",
