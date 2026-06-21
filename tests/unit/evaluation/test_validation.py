@@ -158,3 +158,42 @@ def test_rejects_section_path_mismatch() -> None:
             [make_query(section_path=("Wrong",))],
             [make_chunk()],
         )
+        
+        
+def test_rejects_empty_chunk_id() -> None:
+    with pytest.raises(
+        ValueError,
+        match="chunk_id must not be empty",
+    ):
+        validate_golden_queries(
+            [make_query(chunk_id="   ")],
+            [make_chunk()],
+        )
+        
+        
+def test_rejects_duplicate_chunk_id_within_query() -> None:
+    relevant_chunk = RelevantChunk(
+        chunk_id="chunk-1",
+        relative_path="notes/bm25.md",
+        section_path=("BM25",),
+        relevance=2,
+    )
+
+    query = GoldenQuery(
+        query_id="q001",
+        query="What is BM25?",
+        relevant_chunks=(
+            relevant_chunk,
+            relevant_chunk,
+        ),
+        notes="Definition",
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="duplicate chunk_id",
+    ):
+        validate_golden_queries(
+            [query],
+            [make_chunk()],
+        )

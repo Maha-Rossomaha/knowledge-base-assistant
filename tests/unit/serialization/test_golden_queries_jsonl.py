@@ -132,3 +132,88 @@ def test_golden_section_path_must_contain_strings(
         match="section_path must contain only strings",
     ):
         read_golden_queries_jsonl(path)
+        
+        
+def test_relevant_chunk_must_be_object(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "golden.jsonl"
+    path.write_text(
+        (
+            '{"query_id":"q001","query":"Query",'
+            '"relevant_chunks":["chunk-1"],'
+            '"notes":""}\n'
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="relevant_chunks item must be an object",
+    ):
+        read_golden_queries_jsonl(path)
+        
+        
+def test_golden_section_path_must_be_list(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "golden.jsonl"
+    path.write_text(
+        (
+            '{"query_id":"q001","query":"Query",'
+            '"relevant_chunks":[{"chunk_id":"chunk-1",'
+            '"relative_path":"notes.md",'
+            '"section_path":"Heading",'
+            '"relevance":2}],'
+            '"notes":""}\n'
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="section_path must be a list",
+    ):
+        read_golden_queries_jsonl(path)
+        
+        
+def test_golden_relevance_must_be_integer(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "golden.jsonl"
+    path.write_text(
+        (
+            '{"query_id":"q001","query":"Query",'
+            '"relevant_chunks":[{"chunk_id":"chunk-1",'
+            '"relative_path":"notes.md",'
+            '"section_path":["Heading"],'
+            '"relevance":"2"}],'
+            '"notes":""}\n'
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="relevance must be an integer",
+    ):
+        read_golden_queries_jsonl(path)
+        
+        
+def test_golden_query_id_must_be_string(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "golden.jsonl"
+    path.write_text(
+        (
+            '{"query_id":1,"query":"Query",'
+            '"relevant_chunks":[],"notes":""}\n'
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="query_id must be a string",
+    ):
+        read_golden_queries_jsonl(path)
