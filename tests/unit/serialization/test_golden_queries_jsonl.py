@@ -4,7 +4,8 @@ from typing import Any
 
 import pytest
 
-from knowledge_base_assistant.domain.models import Chunk, GoldenQuery, RelevantChunk
+from knowledge_base_assistant.domain.models import Chunk
+from knowledge_base_assistant.evaluation.models import GoldenQuery, RelevantChunk
 from knowledge_base_assistant.serialization.jsonl import (
     read_golden_queries_jsonl,
     validate_golden_queries,
@@ -285,6 +286,6 @@ def test_project_golden_dataset_is_valid() -> None:
         Path("artifacts/chunks.jsonl"),
     )
 
-    assert len(queries) == 60
-    assert sum(not query.relevant_chunks for query in queries) == 6
+    assert len(queries) == 66
+    assert sum(not query.relevant_chunks for query in queries) == 12
     assert sum(len(query.relevant_chunks) == 1 for query in queries) == 0
