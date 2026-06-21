@@ -5,6 +5,7 @@ import typer
 
 from knowledge_base_assistant.application.golden_validation import validate_golden_files
 from knowledge_base_assistant.application.indexing import build_chunks
+from knowledge_base_assistant.application.search import search_chunks_file
 from knowledge_base_assistant.application.statistics import calculate_chunk_statistics_from_jsonl
 from knowledge_base_assistant.ingestion.chunker import ChunkerConfig
 
@@ -310,3 +311,118 @@ def validate_golden(
         f"Relevance judgments: "
         f"{result.relevance_judgment_count}"
     )
+    
+    
+@app.command()
+def search(
+    query: Annotated[
+        str,
+        typer.Argument(
+            help="Search query.",
+        ),
+    ],
+    chunks_path: Annotated[
+        Path,
+        typer.Option(
+            "--chunks",
+            help="Path to the chunks JSONL file.",
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+            readable=True,
+            resolve_path=True,
+        ),
+    ] = Path("artifacts/chunks.jsonl"),
+    top_k: Annotated[
+        int,
+        typer.Option(
+            "--top-k",
+            help="Maximum number of results.",
+            min=1,
+        ),
+    ] = 5,
+    k1: Annotated[
+        float,
+        typer.Option(
+            "--k1",
+            help="BM25 term-frequency saturation parameter.",
+            min=0.000001,
+        ),
+    ] = 1.5,
+    b: Annotated[
+        float,
+        typer.Option(
+            "--b",
+            help="BM25 document-length normalization parameter.",
+            min=0.0,
+            max=1.0,
+        ),
+    ] = 0.75,
+    content_limit: Annotated[
+        int,
+        typer.Option(
+            "--content-limit",
+            help="Maximum number of content characters to display.",
+            min=0,
+        ),
+    ] = 500,
+) -> None:
+    """Search chunks using BM25."""
+
+    try:
+        results = search_chunks_file(
+            chunks_path=chunks_path,
+            query=query,
+            top_k=top_k,
+            k1=k1,
+            b=b,
+        )
+    except (ValueError, OSError) as error:
+        typer.secho(
+            f"Search failed: {error}",
+            fg=typer.colors.RED,
+            err=True,
+        )
+        raise typer.Exit(code=1) from error
+
+    if not results:
+        typer.echo("No matching chunks found.")
+        return
+
+    for result in results:
+        section = (
+            " > ".join(result.chunk.section_path)
+            if result.chunk.section_path
+            else "<no heading>"
+        )
+
+        content = result.chunk.content
+
+        if content_limit == 0:
+            content = ""
+        elif len(content) > content_limit:
+            content = (
+                content[:content_limit].rstrip()
+                + "..."
+            )
+
+        typer.echo(
+            f"{result.rank}. Score: {result.score:.4f}"
+        )
+        typer.echo(
+            f"   Path: {result.chunk.relative_path}"
+        )
+        typer.echo(f"   Section: {section}")
+        typer.echo(
+            f"   Chunk ID: {result.chunk.chunk_id}"
+        )
+        typer.echo("   Content:")
+        typer.echo(
+            "\n".join(
+                f"     {line}"
+                for line in content.splitlines()
+            )
+        )
+
+        if result.rank != len(results):
+            typer.echo("")
