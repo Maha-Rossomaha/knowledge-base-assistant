@@ -426,3 +426,206 @@ def test_validate_golden_reports_unknown_chunk(
     assert result.exit_code == 1
     assert "Golden validation failed" in result.output
     assert "unknown chunk_id" in result.output
+    
+    
+def test_search_command_displays_ranked_results(
+    tmp_path: Path,
+) -> None:
+    chunks_path = tmp_path / "chunks.jsonl"
+
+    write_chunks_jsonl(
+        [
+            make_statistics_chunk(
+                chunk_id="bm25",
+                relative_path="notes/bm25.md",
+                section_path=("Search", "BM25"),
+                content=(
+                    "BM25 is a lexical retrieval algorithm."
+                ),
+            ),
+            make_statistics_chunk(
+                chunk_id="docker",
+                relative_path="notes/docker.md",
+                section_path=("Infrastructure", "Docker"),
+                content="Docker builds container images.",
+                chunk_index=1,
+            ),
+        ],
+        chunks_path,
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "search",
+            "BM25 lexical retrieval",
+            "--chunks",
+            str(chunks_path),
+            "--top-k",
+            "5",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "1. Score:" in result.output
+    assert "notes/bm25.md" in result.output
+    assert "Search > BM25" in result.output
+    assert "Chunk ID: bm25" in result.output
+    assert "notes/docker.md" not in result.output
+    
+    
+def test_search_command_reports_no_matches(
+    tmp_path: Path,
+) -> None:
+    chunks_path = tmp_path / "chunks.jsonl"
+
+    write_chunks_jsonl(
+        [
+            make_statistics_chunk(
+                content="BM25 lexical retrieval",
+            )
+        ],
+        chunks_path,
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "search",
+            "unrelated-unknown-term",
+            "--chunks",
+            str(chunks_path),
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "No matching chunks found." in result.output
+    
+    
+def test_search_command_truncates_content(
+    tmp_path: Path,
+) -> None:
+    chunks_path = tmp_path / "chunks.jsonl"
+
+    write_chunks_jsonl(
+        [
+            make_statistics_chunk(
+                content=(
+                    "BM25 lexical retrieval with long content"
+                ),
+            )
+        ],
+        chunks_path,
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "search",
+            "BM25",
+            "--chunks",
+            str(chunks_path),
+            "--content-limit",
+            "10",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "BM25 lexic..." in result.output
+    
+    
+def test_search_command_hides_content_when_limit_is_zero(
+    tmp_path: Path,
+) -> None:
+    chunks_path = tmp_path / "chunks.jsonl"
+
+    write_chunks_jsonl(
+        [
+            make_statistics_chunk(
+                content="BM25 lexical retrieval",
+            )
+        ],
+        chunks_path,
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "search",
+            "BM25",
+            "--chunks",
+            str(chunks_path),
+            "--content-limit",
+            "0",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "Content:" in result.output
+    assert "BM25 lexical retrieval" not in result.output
+    
+    
+def test_search_command_reports_invalid_chunks_jsonl(
+    tmp_path: Path,
+) -> None:
+    chunks_path = tmp_path / "chunks.jsonl"
+    chunks_path.write_text(
+        "not valid json\n",
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "search",
+            "BM25",
+            "--chunks",
+            str(chunks_path),
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "Search failed:" in result.output
+    assert "Invalid JSONL at line 1" in result.output
+    
+    
+def test_search_command_separates_multiple_results(
+    tmp_path: Path,
+) -> None:
+    chunks_path = tmp_path / "chunks.jsonl"
+
+    write_chunks_jsonl(
+        [
+            make_statistics_chunk(
+                chunk_id="chunk-1",
+                relative_path="notes/one.md",
+                section_path=("Search", "One"),
+                content="BM25 retrieval first document",
+            ),
+            make_statistics_chunk(
+                chunk_id="chunk-2",
+                relative_path="notes/two.md",
+                section_path=("Search", "Two"),
+                content="BM25 retrieval second document",
+                chunk_index=1,
+            ),
+        ],
+        chunks_path,
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "search",
+            "BM25 retrieval",
+            "--chunks",
+            str(chunks_path),
+            "--top-k",
+            "2",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "1. Score:" in result.output
+    assert "2. Score:" in result.output
+    assert "\n\n2. Score:" in result.output
