@@ -4,7 +4,8 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
-from knowledge_base_assistant.domain.models import Chunk, GoldenQuery, RelevantChunk
+from knowledge_base_assistant.domain.models import Chunk
+from knowledge_base_assistant.evaluation.models import GoldenQuery, RelevantChunk
 
 
 def write_chunks_jsonl(
