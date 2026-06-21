@@ -180,3 +180,21 @@ def test_parser_returns_empty_list_for_empty_document() -> None:
     sections = parse_markdown_sections(document)
 
     assert sections == []
+
+
+def test_parser_removes_trailing_empty_lines_from_section() -> None:
+    document = make_document(
+        "# Heading\n"
+        "\n"
+        "Content.\n"
+        "\n"
+        "\n"
+    )
+
+    sections = parse_markdown_sections(document)
+
+    assert len(sections) == 1
+    assert sections[0].content == "Content."
+    assert sections[0].start_line == 1
+    assert sections[0].content_start_line == 3
+    assert sections[0].end_line == 3
