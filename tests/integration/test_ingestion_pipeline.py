@@ -8,6 +8,10 @@ from knowledge_base_assistant.ingestion.markdown_parser import (
     parse_markdown_sections,
 )
 from knowledge_base_assistant.ingestion.scanner import scan_documents
+from knowledge_base_assistant.serialization.jsonl import (
+    read_chunks_jsonl,
+    write_chunks_jsonl,
+)
 
 
 def test_markdown_file_passes_through_full_ingestion_pipeline(
@@ -101,6 +105,13 @@ def test_markdown_file_passes_through_full_ingestion_pipeline(
 
     assert [chunk.chunk_index for chunk in chunks] == [0, 1, 2]
     assert len({chunk.chunk_id for chunk in chunks}) == 3
+    
+    jsonl_path = tmp_path / "artifacts" / "chunks.jsonl"
+
+    write_chunks_jsonl(chunks, jsonl_path)
+    restored_chunks = read_chunks_jsonl(jsonl_path)
+
+    assert restored_chunks == chunks
 
 
 def test_code_fence_remains_whole_in_full_ingestion_pipeline(
