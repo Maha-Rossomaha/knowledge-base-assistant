@@ -4,6 +4,7 @@ from typing import Annotated
 import typer
 
 from knowledge_base_assistant.application.indexing import build_chunks
+from knowledge_base_assistant.application.statistics import calculate_chunk_statistics_from_jsonl
 from knowledge_base_assistant.ingestion.chunker import ChunkerConfig
 
 app = typer.Typer(
@@ -107,3 +108,112 @@ def index(
     typer.echo(f"Sections: {result.section_count}")
     typer.echo(f"Chunks: {result.chunk_count}")
     typer.echo(f"Output: {result.output_path}")
+    
+
+@app.command()
+def stats(
+    chunks_path: Annotated[
+        Path,
+        typer.Argument(
+            help="Path to the chunks JSONL file.",
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+            readable=True,
+            resolve_path=True,
+        ),
+    ],
+    max_chars: Annotated[
+        int,
+        typer.Option(
+            "--max-chars",
+            help="Expected maximum number of characters in a chunk.",
+            min=1,
+        ),
+    ] = 3_000,
+    max_lines: Annotated[
+        int,
+        typer.Option(
+            "--max-lines",
+            help="Expected maximum number of lines in a chunk.",
+            min=1,
+        ),
+    ] = 40,
+    largest_limit: Annotated[
+        int,
+        typer.Option(
+            "--largest-limit",
+            help="Number of largest chunks to display.",
+            min=0,
+        ),
+    ] = 10,
+) -> None:
+    """Show statistics for a chunks JSONL file."""
+
+    try:
+        statistics = calculate_chunk_statistics_from_jsonl(
+            chunks_path,
+            max_chars=max_chars,
+            max_lines=max_lines,
+            largest_limit=largest_limit,
+        )
+    except (ValueError, OSError) as error:
+        typer.secho(
+            f"Statistics failed: {error}",
+            fg=typer.colors.RED,
+            err=True,
+        )
+        raise typer.Exit(code=1) from error
+
+    typer.echo(f"Documents: {statistics.document_count}")
+    typer.echo(f"Chunks: {statistics.chunk_count}")
+
+    typer.echo("")
+    typer.echo("Characters:")
+    typer.echo(f"  Min: {statistics.min_char_count}")
+    typer.echo(f"  Average: {statistics.average_char_count:.2f}")
+    typer.echo(f"  Max: {statistics.max_char_count}")
+
+    typer.echo("")
+    typer.echo("Lines:")
+    typer.echo(f"  Min: {statistics.min_line_count}")
+    typer.echo(f"  Average: {statistics.average_line_count:.2f}")
+    typer.echo(f"  Max: {statistics.max_line_count}")
+
+    typer.echo("")
+    typer.echo(
+        f"Chunks with code fence: "
+        f"{statistics.chunks_with_code_fence}"
+    )
+    typer.echo(
+        f"Chunks over {max_chars} chars: "
+        f"{statistics.chunks_over_max_chars}"
+    )
+    typer.echo(
+        f"Chunks over {max_lines} lines: "
+        f"{statistics.chunks_over_max_lines}"
+    )
+
+    if statistics.largest_chunks:
+        typer.echo("")
+        typer.echo("Largest chunks:")
+
+        for position, chunk in enumerate(
+            statistics.largest_chunks,
+            start=1,
+        ):
+            section = (
+                " > ".join(chunk.section_path)
+                if chunk.section_path
+                else "<no heading>"
+            )
+
+            typer.echo(
+                f"{position}. {chunk.relative_path}:"
+                f"{chunk.start_line}-{chunk.end_line}"
+            )
+            typer.echo(f"   Section: {section}")
+            typer.echo(
+                f"   Size: {chunk.char_count} chars, "
+                f"{chunk.line_count} lines"
+            )
