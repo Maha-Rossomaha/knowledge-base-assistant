@@ -147,6 +147,14 @@ def stats(
             min=0,
         ),
     ] = 10,
+    smallest_limit: Annotated[
+        int,
+        typer.Option(
+            "--smallest-limit",
+            help="Number of smallest chunks to display.",
+            min=0,
+        ),
+    ] = 20,
 ) -> None:
     """Show statistics for a chunks JSONL file."""
 
@@ -156,6 +164,7 @@ def stats(
             max_chars=max_chars,
             max_lines=max_lines,
             largest_limit=largest_limit,
+            smallest_limit=smallest_limit,
         )
     except (ValueError, OSError) as error:
         typer.secho(
@@ -200,6 +209,30 @@ def stats(
 
         for position, chunk in enumerate(
             statistics.largest_chunks,
+            start=1,
+        ):
+            section = (
+                " > ".join(chunk.section_path)
+                if chunk.section_path
+                else "<no heading>"
+            )
+
+            typer.echo(
+                f"{position}. {chunk.relative_path}:"
+                f"{chunk.start_line}-{chunk.end_line}"
+            )
+            typer.echo(f"   Section: {section}")
+            typer.echo(
+                f"   Size: {chunk.char_count} chars, "
+                f"{chunk.line_count} lines"
+            )
+    
+    if statistics.smallest_chunks:
+        typer.echo("")
+        typer.echo("Smallest chunks:")
+
+        for position, chunk in enumerate(
+            statistics.smallest_chunks,
             start=1,
         ):
             section = (

@@ -6,7 +6,7 @@ from knowledge_base_assistant.serialization.jsonl import read_chunks_jsonl
 
 
 @dataclass(frozen=True, slots=True)
-class LargeChunkInfo:
+class ChunkSizeInfo:
     chunk_id: str
     relative_path: str
     section_path: tuple[str, ...]
@@ -33,7 +33,8 @@ class ChunkStatistics:
     chunks_over_max_chars: int
     chunks_over_max_lines: int
 
-    largest_chunks: tuple[LargeChunkInfo, ...]
+    largest_chunks: tuple[ChunkSizeInfo, ...]
+    smallest_chunks: tuple[ChunkSizeInfo, ...]
 
 
 def calculate_chunk_statistics(
@@ -42,6 +43,7 @@ def calculate_chunk_statistics(
     max_chars: int = 3_000,
     max_lines: int = 40,
     largest_limit: int = 10,
+    smallest_limit: int = 20,
 ) -> ChunkStatistics:
     if max_chars <= 0:
         raise ValueError("max_chars must be positive")
@@ -51,6 +53,9 @@ def calculate_chunk_statistics(
 
     if largest_limit < 0:
         raise ValueError("largest_limit must be non-negative")
+
+    if smallest_limit < 0:
+        raise ValueError("smallest_limit must be non-negative")
 
     if not chunks:
         return ChunkStatistics(
@@ -66,6 +71,7 @@ def calculate_chunk_statistics(
             chunks_over_max_chars=0,
             chunks_over_max_lines=0,
             largest_chunks=(),
+            smallest_chunks=(),
         )
 
     char_counts = [len(chunk.content) for chunk in chunks]
@@ -91,15 +97,25 @@ def calculate_chunk_statistics(
         for line_count in line_counts
     )
 
-    sorted_chunks = sorted(
+    largest_sorted_chunks = sorted(
         chunks,
         key=lambda chunk: len(chunk.content),
         reverse=True,
     )
 
+    smallest_sorted_chunks = sorted(
+        chunks,
+        key=lambda chunk: len(chunk.content),
+    )
+
     largest_chunks = tuple(
-        _make_large_chunk_info(chunk)
-        for chunk in sorted_chunks[:largest_limit]
+        _make_chunk_size_info(chunk)
+        for chunk in largest_sorted_chunks[:largest_limit]
+    )
+
+    smallest_chunks = tuple(
+        _make_chunk_size_info(chunk)
+        for chunk in smallest_sorted_chunks[:smallest_limit]
     )
 
     return ChunkStatistics(
@@ -115,6 +131,7 @@ def calculate_chunk_statistics(
         chunks_over_max_chars=chunks_over_max_chars,
         chunks_over_max_lines=chunks_over_max_lines,
         largest_chunks=largest_chunks,
+        smallest_chunks=smallest_chunks,
     )
 
 
@@ -124,6 +141,7 @@ def calculate_chunk_statistics_from_jsonl(
     max_chars: int = 3_000,
     max_lines: int = 40,
     largest_limit: int = 10,
+    smallest_limit: int = 20,
 ) -> ChunkStatistics:
     if not path.exists():
         raise FileNotFoundError(
@@ -142,6 +160,7 @@ def calculate_chunk_statistics_from_jsonl(
         max_chars=max_chars,
         max_lines=max_lines,
         largest_limit=largest_limit,
+        smallest_limit=smallest_limit,
     )
 
 
@@ -159,8 +178,8 @@ def _contains_code_fence(content: str) -> bool:
     )
 
 
-def _make_large_chunk_info(chunk: Chunk) -> LargeChunkInfo:
-    return LargeChunkInfo(
+def _make_chunk_size_info(chunk: Chunk) -> ChunkSizeInfo:
+    return ChunkSizeInfo(
         chunk_id=chunk.chunk_id,
         relative_path=chunk.relative_path,
         section_path=chunk.section_path,
