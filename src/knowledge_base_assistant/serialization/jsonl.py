@@ -1,9 +1,10 @@
 import json
+from collections.abc import Sequence
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
-from knowledge_base_assistant.domain.models import Chunk
+from knowledge_base_assistant.domain.models import Chunk, GoldenQuery, RelevantChunk
 
 
 def write_chunks_jsonl(
@@ -37,20 +38,96 @@ def read_chunks_jsonl(path: Path) -> list[Chunk]:
             try:
                 data = json.loads(line)
             except json.JSONDecodeError as error:
-                raise ValueError(
-                    f"Invalid JSONL at line {line_number}"
-                ) from error
+                raise ValueError(f"Invalid JSONL at line {line_number}") from error
 
             try:
                 chunk = _chunk_from_dict(data)
             except (KeyError, TypeError, ValueError) as error:
-                raise ValueError(
-                    f"Invalid chunk at line {line_number}: {error}"
-                ) from error
+                raise ValueError(f"Invalid chunk at line {line_number}: {error}") from error
 
             chunks.append(chunk)
 
     return chunks
+
+
+def read_golden_queries_jsonl(
+    path: Path,
+    chunks_path: Path | None = None,
+) -> list[GoldenQuery]:
+    queries: list[GoldenQuery] = []
+
+    with path.open("r", encoding="utf-8") as file:
+        for line_number, line in enumerate(file, start=1):
+            if not line.strip():
+                continue
+
+            try:
+                data = json.loads(line)
+            except json.JSONDecodeError as error:
+                raise ValueError(f"Invalid JSONL at line {line_number}") from error
+
+            try:
+                query = _golden_query_from_dict(data)
+            except (KeyError, TypeError, ValueError) as error:
+                raise ValueError(
+                    f"Invalid golden query at line {line_number}: {error}"
+                ) from error
+
+            queries.append(query)
+
+    reference_chunks = read_chunks_jsonl(chunks_path) if chunks_path is not None else ()
+    validate_golden_queries(queries, reference_chunks)
+
+    return queries
+
+
+def validate_golden_queries(
+    queries: Sequence[GoldenQuery],
+    chunks: Sequence[Chunk] = (),
+) -> None:
+    seen_query_ids: set[str] = set()
+    chunks_by_id = {chunk.chunk_id: chunk for chunk in chunks}
+
+    for query in queries:
+        if not query.query_id.strip():
+            raise ValueError("query_id must not be empty")
+        if not query.query.strip():
+            raise ValueError(f"query must not be empty for {query.query_id}")
+        if query.query_id in seen_query_ids:
+            raise ValueError(f"Duplicate query_id: {query.query_id}")
+        seen_query_ids.add(query.query_id)
+
+        seen_chunk_ids: set[str] = set()
+        for relevant_chunk in query.relevant_chunks:
+            if relevant_chunk.relevance not in {1, 2}:
+                raise ValueError(
+                    f"Invalid relevance for {query.query_id}: "
+                    f"{relevant_chunk.relevance}"
+                )
+            if relevant_chunk.chunk_id in seen_chunk_ids:
+                raise ValueError(
+                    f"Duplicate chunk_id for {query.query_id}: "
+                    f"{relevant_chunk.chunk_id}"
+                )
+            seen_chunk_ids.add(relevant_chunk.chunk_id)
+
+            if chunks_by_id:
+                actual_chunk = chunks_by_id.get(relevant_chunk.chunk_id)
+                if actual_chunk is None:
+                    raise ValueError(
+                        f"Unknown chunk_id for {query.query_id}: "
+                        f"{relevant_chunk.chunk_id}"
+                    )
+                if relevant_chunk.relative_path != actual_chunk.relative_path:
+                    raise ValueError(
+                        f"relative_path mismatch for {query.query_id}, "
+                        f"chunk {relevant_chunk.chunk_id}"
+                    )
+                if relevant_chunk.section_path != actual_chunk.section_path:
+                    raise ValueError(
+                        f"section_path mismatch for {query.query_id}, "
+                        f"chunk {relevant_chunk.chunk_id}"
+                    )
 
 
 def _chunk_from_dict(data: Any) -> Chunk:
@@ -77,3 +154,51 @@ def _chunk_from_dict(data: Any) -> Chunk:
         end_line=data["end_line"],
         content_hash=data["content_hash"],
     )
+
+
+def _golden_query_from_dict(data: Any) -> GoldenQuery:
+    if not isinstance(data, dict):
+        raise TypeError("JSON value must be an object")
+
+    relevant_chunks = data["relevant_chunks"]
+    if not isinstance(relevant_chunks, list):
+        raise TypeError("relevant_chunks must be a list")
+
+    return GoldenQuery(
+        query_id=_required_string(data, "query_id"),
+        query=_required_string(data, "query"),
+        relevant_chunks=tuple(
+            _relevant_chunk_from_dict(relevant_chunk)
+            for relevant_chunk in relevant_chunks
+        ),
+        notes=_required_string(data, "notes"),
+    )
+
+
+def _relevant_chunk_from_dict(data: Any) -> RelevantChunk:
+    if not isinstance(data, dict):
+        raise TypeError("relevant_chunks item must be an object")
+
+    section_path = data["section_path"]
+    if not isinstance(section_path, list):
+        raise TypeError("section_path must be a list")
+    if not all(isinstance(section, str) for section in section_path):
+        raise TypeError("section_path must contain only strings")
+
+    relevance = data["relevance"]
+    if not isinstance(relevance, int):
+        raise TypeError("relevance must be an integer")
+
+    return RelevantChunk(
+        chunk_id=_required_string(data, "chunk_id"),
+        relative_path=_required_string(data, "relative_path"),
+        section_path=tuple(section_path),
+        relevance=relevance,
+    )
+
+
+def _required_string(data: dict[str, Any], field: str) -> str:
+    value = data[field]
+    if not isinstance(value, str):
+        raise TypeError(f"{field} must be a string")
+    return value
