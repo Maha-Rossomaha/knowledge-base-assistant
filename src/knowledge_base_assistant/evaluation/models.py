@@ -31,3 +31,15 @@ class QueryMetrics:
     recall_at_k: float
     reciprocal_rank: float
     ndcg_at_k: float
+    
+
+@dataclass(frozen=True, slots=True)
+class RetrievalEvaluationResult:
+    top_k: int
+    query_count: int
+    evaluated_query_count: int
+    no_answer_query_count: int
+    hit_rate_at_k: float
+    recall_at_k: float
+    mean_reciprocal_rank: float
+    ndcg_at_k: float
