@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from knowledge_base_assistant.retrieval.bm25 import BM25Index
-from knowledge_base_assistant.retrieval.models import SearchResult
+from knowledge_base_assistant.retrieval.lexical.bm25 import BM25Index
+from knowledge_base_assistant.retrieval.lexical.models import SearchResult
 from knowledge_base_assistant.serialization.jsonl import (
     read_chunks_jsonl,
 )

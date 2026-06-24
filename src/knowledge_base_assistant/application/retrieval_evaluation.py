@@ -11,7 +11,7 @@ from knowledge_base_assistant.evaluation.models import (
 from knowledge_base_assistant.evaluation.validation import (
     validate_golden_queries,
 )
-from knowledge_base_assistant.retrieval.bm25 import BM25Index
+from knowledge_base_assistant.retrieval.lexical.bm25 import BM25Index
 from knowledge_base_assistant.serialization.jsonl import (
     read_chunks_jsonl,
     read_golden_queries_jsonl,
