@@ -1,6 +1,6 @@
 import pytest
 
-from knowledge_base_assistant.retrieval.tokenizer import tokenize
+from knowledge_base_assistant.retrieval.lexical.tokenizer import tokenize
 
 
 def test_tokenize_lowercases_latin_text() -> None:

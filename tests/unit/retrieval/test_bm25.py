@@ -1,7 +1,7 @@
 import pytest
 
 from knowledge_base_assistant.domain.models import Chunk
-from knowledge_base_assistant.retrieval.bm25 import BM25Index
+from knowledge_base_assistant.retrieval.lexical.bm25 import BM25Index
 
 
 def make_chunk(
