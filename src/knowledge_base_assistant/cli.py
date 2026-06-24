@@ -8,6 +8,8 @@ from knowledge_base_assistant.application.indexing import build_chunks
 from knowledge_base_assistant.application.search import search_chunks_file
 from knowledge_base_assistant.application.statistics import calculate_chunk_statistics_from_jsonl
 from knowledge_base_assistant.ingestion.chunker import ChunkerConfig
+from knowledge_base_assistant.application.retrieval_evaluation import evaluate_bm25_retrieval
+    
 
 app = typer.Typer(
     name="copilot",
@@ -426,3 +428,104 @@ def search(
 
         if result.rank != len(results):
             typer.echo("")
+            
+            
+@app.command()
+def evaluate(
+    golden_path: Annotated[
+        Path,
+        typer.Argument(
+            help="Path to the golden queries JSONL file.",
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+            readable=True,
+            resolve_path=True,
+        ),
+    ],
+    chunks_path: Annotated[
+        Path,
+        typer.Argument(
+            help="Path to the chunks JSONL file.",
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+            readable=True,
+            resolve_path=True,
+        ),
+    ],
+    top_k: Annotated[
+        int,
+        typer.Option(
+            "--top-k",
+            help="Number of retrieved chunks evaluated per query.",
+            min=1,
+        ),
+    ] = 5,
+    k1: Annotated[
+        float,
+        typer.Option(
+            "--k1",
+            help="BM25 term-frequency saturation parameter.",
+            min=0.000001,
+        ),
+    ] = 1.5,
+    b: Annotated[
+        float,
+        typer.Option(
+            "--b",
+            help="BM25 document-length normalization parameter.",
+            min=0.0,
+            max=1.0,
+        ),
+    ] = 0.75,
+) -> None:
+    """Evaluate BM25 retrieval against a golden dataset."""
+
+    try:
+        result = evaluate_bm25_retrieval(
+            golden_path=golden_path,
+            chunks_path=chunks_path,
+            top_k=top_k,
+            k1=k1,
+            b=b,
+        )
+    except (ValueError, OSError) as error:
+        typer.secho(
+            f"Retrieval evaluation failed: {error}",
+            fg=typer.colors.RED,
+            err=True,
+        )
+        raise typer.Exit(code=1) from error
+
+    typer.secho(
+        "Retrieval evaluation completed.",
+        fg=typer.colors.GREEN,
+    )
+    typer.echo(f"Top-K: {result.top_k}")
+    typer.echo(f"Queries: {result.query_count}")
+    typer.echo(
+        f"Evaluated queries: "
+        f"{result.evaluated_query_count}"
+    )
+    typer.echo(
+        f"No-answer queries: "
+        f"{result.no_answer_query_count}"
+    )
+    typer.echo("")
+    typer.echo(
+        f"HitRate@{result.top_k}: "
+        f"{result.hit_rate_at_k:.4f}"
+    )
+    typer.echo(
+        f"Recall@{result.top_k}: "
+        f"{result.recall_at_k:.4f}"
+    )
+    typer.echo(
+        f"MRR@{result.top_k}: "
+        f"{result.mean_reciprocal_rank:.4f}"
+    )
+    typer.echo(
+        f"nDCG@{result.top_k}: "
+        f"{result.ndcg_at_k:.4f}"
+    )
