@@ -629,3 +629,93 @@ def test_search_command_separates_multiple_results(
     assert "1. Score:" in result.output
     assert "2. Score:" in result.output
     assert "\n\n2. Score:" in result.output
+    
+    
+def test_evaluate_command_displays_metrics(
+    tmp_path: Path,
+) -> None:
+    chunks_path = tmp_path / "chunks.jsonl"
+    golden_path = tmp_path / "golden.jsonl"
+
+    chunk = make_statistics_chunk(
+        chunk_id="bm25",
+        relative_path="notes/bm25.md",
+        section_path=("Search", "BM25"),
+        content="BM25 lexical retrieval ranking.",
+    )
+
+    write_chunks_jsonl(
+        [chunk],
+        chunks_path,
+    )
+
+    golden_path.write_text(
+        (
+            '{"query_id":"q001","query":"BM25 lexical retrieval",'
+            '"relevant_chunks":[{"chunk_id":"bm25",'
+            '"relative_path":"notes/bm25.md",'
+            '"section_path":["Search","BM25"],'
+            '"relevance":2}],'
+            '"notes":"BM25 query"}\n'
+        ),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "evaluate",
+            str(golden_path),
+            str(chunks_path),
+            "--top-k",
+            "1",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "Retrieval evaluation completed." in result.output
+    assert "Top-K: 1" in result.output
+    assert "Queries: 1" in result.output
+    assert "Evaluated queries: 1" in result.output
+    assert "No-answer queries: 0" in result.output
+    assert "HitRate@1: 1.0000" in result.output
+    assert "Recall@1: 1.0000" in result.output
+    assert "MRR@1: 1.0000" in result.output
+    assert "nDCG@1: 1.0000" in result.output
+
+
+def test_evaluate_command_reports_invalid_golden_dataset(
+    tmp_path: Path,
+) -> None:
+    chunks_path = tmp_path / "chunks.jsonl"
+    golden_path = tmp_path / "golden.jsonl"
+
+    write_chunks_jsonl(
+        [make_statistics_chunk()],
+        chunks_path,
+    )
+
+    golden_path.write_text(
+        (
+            '{"query_id":"q001","query":"Query",'
+            '"relevant_chunks":[{"chunk_id":"missing",'
+            '"relative_path":"notes/missing.md",'
+            '"section_path":["Missing"],'
+            '"relevance":2}],'
+            '"notes":""}\n'
+        ),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "evaluate",
+            str(golden_path),
+            str(chunks_path),
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "Retrieval evaluation failed:" in result.output
+    assert "unknown chunk_id" in result.output
