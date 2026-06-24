@@ -23,3 +23,11 @@ class GoldenValidationResult:
     answerable_query_count: int
     no_answer_query_count: int
     relevance_judgment_count: int
+    
+    
+@dataclass(frozen=True, slots=True)
+class QueryMetrics:
+    hit_rate_at_k: float
+    recall_at_k: float
+    reciprocal_rank: float
+    ndcg_at_k: float
