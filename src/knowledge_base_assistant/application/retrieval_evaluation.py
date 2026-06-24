@@ -186,6 +186,9 @@ def evaluate_bm25_queries(
                     result.chunk.chunk_id,
                     0,
                 ),
+                relative_path=result.chunk.relative_path,
+                section_path=result.chunk.section_path,
+                content=result.chunk.content,
             )
             for result in search_results
         )

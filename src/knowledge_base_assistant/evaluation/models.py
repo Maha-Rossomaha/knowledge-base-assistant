@@ -64,3 +64,14 @@ class QueryEvaluationResult:
     recall_at_k: float
     reciprocal_rank: float
     ndcg_at_k: float
+    
+    
+@dataclass(frozen=True, slots=True)
+class RetrievedChunkEvaluation:
+    chunk_id: str
+    rank: int
+    score: float
+    relevance: int
+    relative_path: str
+    section_path: tuple[str, ...]
+    content: str
