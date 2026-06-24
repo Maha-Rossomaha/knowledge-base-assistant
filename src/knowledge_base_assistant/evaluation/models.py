@@ -43,3 +43,24 @@ class RetrievalEvaluationResult:
     recall_at_k: float
     mean_reciprocal_rank: float
     ndcg_at_k: float
+    
+    
+@dataclass(frozen=True, slots=True)
+class RetrievedChunkEvaluation:
+    chunk_id: str
+    rank: int
+    score: float
+    relevance: int
+
+
+@dataclass(frozen=True, slots=True)
+class QueryEvaluationResult:
+    query_id: str
+    query: str
+    relevant_chunk_ids: tuple[str, ...]
+    retrieved_chunks: tuple[RetrievedChunkEvaluation, ...]
+    first_relevant_rank: int | None
+    hit_rate_at_k: float
+    recall_at_k: float
+    reciprocal_rank: float
+    ndcg_at_k: float
