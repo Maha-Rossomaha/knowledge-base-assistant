@@ -1,4 +1,5 @@
 import pytest
+
 from knowledge_base_assistant.evaluation.metrics import (
     calculate_query_metrics,
     hit_rate_at_k,
