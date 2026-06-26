@@ -131,12 +131,14 @@ def calculate_query_metrics(
 def _discounted_cumulative_gain(
     relevances: Sequence[int],
 ) -> float:
-    return sum(
-        (2**relevance - 1)
-        / math.log2(rank + 1)
-        for rank, relevance in enumerate(
-            relevances,
-            start=1,
+    return float(
+        sum(
+            (2**relevance - 1)
+            / math.log2(rank + 1)
+            for rank, relevance in enumerate(
+                relevances,
+                start=1,
+            )
         )
     )
 
