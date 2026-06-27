@@ -90,7 +90,7 @@ def normalize_embeddings(
     
     normalized = embeddings / norms
     
-    return normalized.astype(
+    return normalized.astype( # type: ignore[no-any-return]
         np.float32,
         copy=False,
     )
