@@ -8,7 +8,7 @@ from knowledge_base_assistant.retrieval.dense.models import DenseIndexMetadata
 def build_dense_index_data(
     chunks: list[Chunk],
     embedding_model: EmbeddingModel,
-    chunks_hash: str,
+    chunks_sha256: str,
 ) -> tuple[np.ndarray, DenseIndexMetadata]:
     if not embedding_model.model_name:
         raise ValueError("Embedding model name must not be empty")
@@ -16,7 +16,7 @@ def build_dense_index_data(
     if embedding_model.dimension < 1:
         raise ValueError("Embedding dimension must be at least 1")
 
-    if not chunks_hash:
+    if not chunks_sha256:
         raise ValueError("Chunks hash must not be empty")
     
     chunk_ids = tuple(chunk.chunk_id for chunk in chunks)
@@ -69,7 +69,7 @@ def build_dense_index_data(
         model_name=embedding_model.model_name,
         dimension=embedding_model.dimension,
         normalized=True,
-        chunks_hash=chunks_hash,
+        chunks_sha256=chunks_sha256,
         chunk_ids=chunk_ids,
     )
 

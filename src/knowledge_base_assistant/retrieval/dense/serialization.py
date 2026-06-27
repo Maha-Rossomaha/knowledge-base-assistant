@@ -59,7 +59,7 @@ def _dense_index_metadata_from_dict(
     model_name = data["model_name"]
     dimension = data["dimension"]
     normalized = data["normalized"]
-    chunks_hash = data["chunks_hash"]
+    chunks_sha256 = data["chunks_sha256"]
 
     if type(schema_version) is not int:
         raise TypeError("schema_version must be an integer")
@@ -73,8 +73,8 @@ def _dense_index_metadata_from_dict(
     if not isinstance(normalized, bool):
         raise TypeError("normalized must be a boolean")
 
-    if not isinstance(chunks_hash, str):
-        raise TypeError("chunks_hash must be a string")
+    if not isinstance(chunks_sha256, str):
+        raise TypeError("chunks_sha256 must be a string")
 
     if schema_version < 1:
         raise ValueError("schema_version must be at least 1")
@@ -85,14 +85,14 @@ def _dense_index_metadata_from_dict(
     if not model_name:
         raise ValueError("model_name must not be empty")
 
-    if not chunks_hash:
-        raise ValueError("chunks_hash must not be empty")
+    if not chunks_sha256:
+        raise ValueError("chunks_sha256 must not be empty")
 
     return DenseIndexMetadata(
         schema_version=schema_version,
         model_name=model_name,
         dimension=dimension,
         normalized=normalized,
-        chunks_hash=chunks_hash,
+        chunks_sha256=chunks_sha256,
         chunk_ids=tuple(chunk_ids),
     )

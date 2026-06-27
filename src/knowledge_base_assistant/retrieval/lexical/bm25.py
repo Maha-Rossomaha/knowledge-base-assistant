@@ -3,8 +3,8 @@ from collections import Counter
 from collections.abc import Sequence
 
 from knowledge_base_assistant.domain.models import Chunk
-from knowledge_base_assistant.retrieval.lexical.models import SearchResult
 from knowledge_base_assistant.retrieval.lexical.tokenizer import tokenize
+from knowledge_base_assistant.retrieval.models import SearchResult
 
 
 class BM25Index:

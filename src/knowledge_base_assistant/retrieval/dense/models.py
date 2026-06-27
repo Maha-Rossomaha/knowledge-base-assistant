@@ -7,5 +7,5 @@ class DenseIndexMetadata:
     model_name: str
     dimension: int
     normalized: bool
-    chunks_hash: str
+    chunks_sha256: str
     chunk_ids: tuple[str, ...]
