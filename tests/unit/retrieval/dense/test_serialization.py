@@ -15,7 +15,7 @@ def test_dense_index_metadata_round_trip(tmp_path) -> None:
         model_name="intfloat/multilingual-e5-base",
         dimension=768,
         normalized=True,
-        chunks_hash="chunks-hash-1",
+        chunks_sha256="chunks-hash-1",
         chunk_ids=("chunk-1", "chunk-2"),
     )
     path = tmp_path / "dense" / "index_metadata.json"
@@ -34,7 +34,7 @@ def test_write_dense_index_metadata_creates_parent_directories(
         model_name="model",
         dimension=3,
         normalized=True,
-        chunks_hash="hash",
+        chunks_sha256="hash",
         chunk_ids=("chunk-1",),
     )
     path = tmp_path / "nested" / "dense" / "index_metadata.json"
@@ -52,7 +52,7 @@ def test_write_dense_index_metadata_writes_expected_json(
         model_name="многоязычная-модель",
         dimension=3,
         normalized=False,
-        chunks_hash="hash",
+        chunks_sha256="hash",
         chunk_ids=("chunk-1", "chunk-2"),
     )
     path = tmp_path / "index_metadata.json"
@@ -66,7 +66,7 @@ def test_write_dense_index_metadata_writes_expected_json(
         "model_name": "многоязычная-модель",
         "dimension": 3,
         "normalized": False,
-        "chunks_hash": "hash",
+        "chunks_sha256": "hash",
         "chunk_ids": ["chunk-1", "chunk-2"],
     }
 
@@ -121,7 +121,7 @@ def test_read_dense_index_metadata_rejects_missing_field(
                 "model_name": "model",
                 "dimension": 3,
                 "normalized": True,
-                "chunks_hash": "hash",
+                "chunks_sha256": "hash",
             }
         ),
         encoding="utf-8",
@@ -220,9 +220,9 @@ def test_read_dense_index_metadata_rejects_non_string_chunk_ids(
             "normalized must be a boolean",
         ),
         (
-            "chunks_hash",
+            "chunks_sha256",
             123,
-            "chunks_hash must be a string",
+            "chunks_sha256 must be a string",
         ),
     ],
 )
@@ -274,9 +274,9 @@ def test_read_dense_index_metadata_rejects_invalid_field_types(
             "model_name must not be empty",
         ),
         (
-            "chunks_hash",
+            "chunks_sha256",
             "",
-            "chunks_hash must not be empty",
+            "chunks_sha256 must not be empty",
         ),
     ],
 )
@@ -322,7 +322,7 @@ def _write_metadata_json(
         "model_name": "model",
         "dimension": 3,
         "normalized": True,
-        "chunks_hash": "hash",
+        "chunks_sha256": "hash",
         "chunk_ids": ["chunk-1", "chunk-2"],
     }
     data.update(overrides)

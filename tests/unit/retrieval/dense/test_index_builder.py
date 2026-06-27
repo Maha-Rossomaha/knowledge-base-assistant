@@ -69,7 +69,7 @@ def test_build_dense_index_data_uses_searchable_texts_in_order() -> None:
     build_dense_index_data(
         chunks,
         model,
-        chunks_hash="chunks-hash",
+        chunks_sha256="chunks-hash",
     )
 
     assert model.received_texts == [
@@ -104,7 +104,7 @@ def test_build_dense_index_data_returns_normalized_float32_embeddings() -> None:
     embeddings, _ = build_dense_index_data(
         chunks,
         model,
-        chunks_hash="chunks-hash",
+        chunks_sha256="chunks-hash",
     )
 
     assert embeddings.dtype == np.float32
@@ -158,14 +158,14 @@ def test_build_dense_index_data_creates_expected_metadata() -> None:
     _, metadata = build_dense_index_data(
         chunks,
         model,
-        chunks_hash="chunks-hash",
+        chunks_sha256="chunks-hash",
     )
 
     assert metadata.schema_version == 1
     assert metadata.model_name == "test-embedding-model"
     assert metadata.dimension == 3
     assert metadata.normalized is True
-    assert metadata.chunks_hash == "chunks-hash"
+    assert metadata.chunks_sha256 == "chunks-hash"
     assert metadata.chunk_ids == ("chunk-1", "chunk-2")
 
 
@@ -182,7 +182,7 @@ def test_build_dense_index_data_rejects_empty_model_name() -> None:
         build_dense_index_data(
             [],
             model,
-            chunks_hash="chunks-hash",
+            chunks_sha256="chunks-hash",
         )
 
 
@@ -202,11 +202,11 @@ def test_build_dense_index_data_rejects_invalid_model_dimension(
         build_dense_index_data(
             [],
             model,
-            chunks_hash="chunks-hash",
+            chunks_sha256="chunks-hash",
         )
 
 
-def test_build_dense_index_data_rejects_empty_chunks_hash() -> None:
+def test_build_dense_index_data_rejects_empty_chunks_sha256() -> None:
     model = FakeEmbeddingModel(
         np.empty((0, 3), dtype=np.float32)
     )
@@ -218,7 +218,7 @@ def test_build_dense_index_data_rejects_empty_chunks_hash() -> None:
         build_dense_index_data(
             [],
             model,
-            chunks_hash="",
+            chunks_sha256="",
         )
 
 
@@ -246,7 +246,7 @@ def test_build_dense_index_data_rejects_duplicate_chunk_ids() -> None:
         build_dense_index_data(
             chunks,
             model,
-            chunks_hash="chunks-hash",
+            chunks_sha256="chunks-hash",
         )
 
 
@@ -269,7 +269,7 @@ def test_build_dense_index_data_rejects_non_numpy_result() -> None:
         build_dense_index_data(
             chunks,
             model,
-            chunks_hash="chunks-hash",
+            chunks_sha256="chunks-hash",
         )
 
 
@@ -300,7 +300,7 @@ def test_build_dense_index_data_rejects_non_two_dimensional_result(
         build_dense_index_data(
             chunks,
             model,
-            chunks_hash="chunks-hash",
+            chunks_sha256="chunks-hash",
         )
 
 
@@ -328,7 +328,7 @@ def test_build_dense_index_data_rejects_wrong_row_count() -> None:
         build_dense_index_data(
             chunks,
             model,
-            chunks_hash="chunks-hash",
+            chunks_sha256="chunks-hash",
         )
 
 
@@ -352,7 +352,7 @@ def test_build_dense_index_data_rejects_wrong_dimension() -> None:
         build_dense_index_data(
             chunks,
             model,
-            chunks_hash="chunks-hash",
+            chunks_sha256="chunks-hash",
         )
 
 
@@ -378,7 +378,7 @@ def test_build_dense_index_data_rejects_non_numeric_embeddings() -> None:
         build_dense_index_data(
             chunks,
             model,
-            chunks_hash="chunks-hash",
+            chunks_sha256="chunks-hash",
         )
 
 
@@ -414,7 +414,7 @@ def test_build_dense_index_data_rejects_non_finite_values(
         build_dense_index_data(
             chunks,
             model,
-            chunks_hash="chunks-hash",
+            chunks_sha256="chunks-hash",
         )
 
 

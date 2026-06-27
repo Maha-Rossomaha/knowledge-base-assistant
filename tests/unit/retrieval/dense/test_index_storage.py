@@ -253,6 +253,6 @@ def _make_metadata(
         model_name="test-model",
         dimension=dimension,
         normalized=True,
-        chunks_hash="chunks-hash",
+        chunks_sha256="chunks-hash",
         chunk_ids=chunk_ids,
     )
