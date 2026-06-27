@@ -1,7 +1,5 @@
 import hashlib
-import json
 from pathlib import Path
-
 
 _BLOCK_SIZE = 64 * 1024
 
