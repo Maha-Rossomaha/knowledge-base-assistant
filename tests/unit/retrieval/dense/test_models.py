@@ -16,8 +16,8 @@ def test_dense_index_metadata_can_be_created() -> None:
     )
 
     assert metadata.schema_version == 1
-    assert metadata.model_name == "intfloat/multilingual-e5-base"
-    assert metadata.dimension == 768
+    assert metadata.embedding_model.model_name == "intfloat/multilingual-e5-base"
+    assert metadata.embedding_model.dimension == 768
     assert metadata.normalized is True
     assert metadata.chunks_sha256 == "chunks-hash-1"
     assert metadata.chunk_ids == ("chunk-1", "chunk-2")
@@ -34,4 +34,4 @@ def test_dense_index_metadata_is_immutable() -> None:
     )
 
     with pytest.raises(FrozenInstanceError):
-        metadata.dimension = 384  # type: ignore[misc]
+        metadata.embedding_model.dimension = 384  # type: ignore[misc]

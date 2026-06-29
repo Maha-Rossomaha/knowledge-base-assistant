@@ -173,8 +173,8 @@ def test_build_dense_index_data_creates_expected_metadata() -> None:
     )
 
     assert metadata.schema_version == 1
-    assert metadata.model_name == "test-embedding-model"
-    assert metadata.dimension == 3
+    assert metadata.embedding_model.model_name == "test-embedding-model"
+    assert metadata.embedding_model.dimension == 3
     assert metadata.normalized is True
     assert metadata.chunks_sha256 == "chunks-hash"
     assert metadata.chunk_ids == ("chunk-1", "chunk-2")
