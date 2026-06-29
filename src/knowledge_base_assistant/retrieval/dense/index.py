@@ -1,9 +1,9 @@
 import numpy as np
 
 from knowledge_base_assistant.domain.models import Chunk
-from knowledge_base_assistant.retrieval.models import SearchResult
 from knowledge_base_assistant.retrieval.dense.embedding import EmbeddingModel
 from knowledge_base_assistant.retrieval.dense.models import DenseIndexMetadata
+from knowledge_base_assistant.retrieval.models import SearchResult
 
 
 class DenseIndex:
