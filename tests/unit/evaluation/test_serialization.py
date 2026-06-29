@@ -6,6 +6,7 @@ from knowledge_base_assistant.evaluation.models import (
     RetrievedChunkEvaluation,
 )
 from knowledge_base_assistant.evaluation.serialization import (
+    read_query_evaluation_results_jsonl,
     write_query_evaluation_misses_jsonl,
     write_query_evaluation_results_jsonl,
 )
@@ -145,3 +146,24 @@ def _make_result(
             else 0.0
         ),
     )
+    
+    
+def test_read_query_evaluation_results_jsonl(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "results.jsonl"
+    expected = _make_result(
+        query_id="query-1",
+        first_relevant_rank=1,
+    )
+
+    write_query_evaluation_results_jsonl(
+        (expected,),
+        path,
+    )
+
+    actual = read_query_evaluation_results_jsonl(
+        path,
+    )
+
+    assert actual == (expected,)
