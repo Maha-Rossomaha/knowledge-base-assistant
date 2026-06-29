@@ -316,8 +316,8 @@ def validate_golden(
     )
     
     
-@app.command()
-def search(
+@app.command("lexical-search")
+def lexical_search(
     query: Annotated[
         str,
         typer.Argument(
@@ -431,8 +431,8 @@ def search(
             typer.echo("")
             
             
-@app.command()
-def evaluate(
+@app.command("lexical-evaluate")
+def lexical_evaluate(
     golden_path: Annotated[
         Path,
         typer.Argument(
