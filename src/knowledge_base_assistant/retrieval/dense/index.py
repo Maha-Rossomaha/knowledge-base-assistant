@@ -58,6 +58,7 @@ class DenseIndex:
     def search(
         self,
         query: str,
+        *,
         top_k: int,
     ) -> list[SearchResult]:
         if not query.strip():
