@@ -61,7 +61,7 @@ def evaluate_dense_retrieval(
         }
 
         search_results = index.search(
-            query=query,
+            query=query.query,
             top_k=top_k,
         )
 
@@ -163,7 +163,7 @@ def evaluate_dense_queries(
         }
 
         search_results = index.search(
-            query=query,
+            query=query.query,
             top_k=top_k,
         )
 
