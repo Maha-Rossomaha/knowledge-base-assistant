@@ -1,19 +1,19 @@
 from collections.abc import Sequence
 
-from knowledge_base_assistant.retrieval.base import Retriever
+from knowledge_base_assistant.domain.models import Chunk
 from knowledge_base_assistant.evaluation.metrics import (
     calculate_query_metrics,
 )
 from knowledge_base_assistant.evaluation.models import (
+    GoldenQuery,
     QueryEvaluationResult,
     RetrievalEvaluationResult,
     RetrievedChunkEvaluation,
 )
-from knowledge_base_assistant.domain.models import Chunk
-from knowledge_base_assistant.evaluation.models import GoldenQuery
 from knowledge_base_assistant.evaluation.validation import (
     validate_golden_queries,
 )
+from knowledge_base_assistant.retrieval.base import Retriever
 
 
 def evaluate_retrieval(

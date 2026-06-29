@@ -1,16 +1,16 @@
 from pathlib import Path
 
 from knowledge_base_assistant.application.dense_search import load_dense_index
+from knowledge_base_assistant.application.retrieval_evaluation import (
+    evaluate_queries,
+    evaluate_retrieval,
+)
 from knowledge_base_assistant.evaluation.models import (
     QueryEvaluationResult,
     RetrievalEvaluationResult,
 )
 from knowledge_base_assistant.retrieval.dense.embedding import EmbeddingModel
 from knowledge_base_assistant.serialization.jsonl import read_golden_queries_jsonl
-from knowledge_base_assistant.application.retrieval_evaluation import (
-    evaluate_retrieval,
-    evaluate_queries,
-)
 
 
 def evaluate_dense_retrieval(
