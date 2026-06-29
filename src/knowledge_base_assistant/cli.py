@@ -3,6 +3,7 @@ from typing import Annotated
 
 import typer
 
+from knowledge_base_assistant.application.dense_indexing import build_dense_index
 from knowledge_base_assistant.application.golden_validation import validate_golden_files
 from knowledge_base_assistant.application.indexing import build_chunks
 from knowledge_base_assistant.application.lexical_retrieval_evaluation import (
@@ -11,6 +12,9 @@ from knowledge_base_assistant.application.lexical_retrieval_evaluation import (
 from knowledge_base_assistant.application.lexical_search import search_chunks_file
 from knowledge_base_assistant.application.statistics import calculate_chunk_statistics_from_jsonl
 from knowledge_base_assistant.ingestion.chunker import ChunkerConfig
+from knowledge_base_assistant.retrieval.dense.sentence_transformer import (
+    SentenceTransformerEmbeddingModel,
+)
 
 app = typer.Typer(
     name="copilot",
@@ -530,3 +534,110 @@ def lexical_evaluate(
         f"nDCG@{result.top_k}: "
         f"{result.ndcg_at_k:.4f}"
     )
+
+
+@app.command("dense-index")
+def dense_index(
+    model_name: Annotated[
+        str,
+        typer.Option(
+            "--model-name",
+            help="Name or path of the sentence-transformers model.",
+        ),
+    ] = "intfloat/multilingual-e5-base",
+    chunks_path: Annotated[
+        Path,
+        typer.Option(
+            "--chunks",
+            help="Path to the chunks JSONL file.",
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+            readable=True,
+            resolve_path=True,
+        ),
+    ] = Path("artifacts/chunks.jsonl"),
+    embeddings_path: Annotated[
+        Path,
+        typer.Option(
+            "--embeddings",
+            help="Path to the resulting embeddings NPY file.",
+            file_okay=True,
+            dir_okay=False,
+            resolve_path=True,
+        ),
+    ] = Path("artifacts/dense/embeddings.npy"),
+    metadata_path: Annotated[
+        Path,
+        typer.Option(
+            "--metadata",
+            help="Path to the resulting dense-index metadata JSON file.",
+            file_okay=True,
+            dir_okay=False,
+            resolve_path=True,
+        ),
+    ] = Path("artifacts/dense/metadata.json"),
+    batch_size: Annotated[
+        int,
+        typer.Option(
+            "--batch-size",
+            help="Number of texts encoded in one batch.",
+            min=1,
+        ),
+    ] = 32,
+    device: Annotated[
+        str,
+        typer.Option(
+            "--device",
+            help="Device used for embedding inference, for example cpu or cuda.",
+        ),
+    ] = "cpu",
+    query_prefix: Annotated[
+        str,
+        typer.Option(
+            "--query-prefix",
+            help="Query prefix.",
+        ),
+    ] = "query: ",
+    document_prefix: Annotated[
+        str,
+        typer.Option(
+            "--document-prefix",
+            help="Document prefix.",
+        ),
+    ] = "passage: ",
+) -> None:
+    """Build a dense index from a chunks JSONL file."""
+
+    try:
+        embedding_model = SentenceTransformerEmbeddingModel(
+            model_name=model_name,
+            batch_size=batch_size,
+            device=device,
+            query_prefix=query_prefix,
+            document_prefix=document_prefix,
+        )
+
+        result = build_dense_index(
+            chunks_path=chunks_path,
+            embeddings_path=embeddings_path,
+            metadata_path=metadata_path,
+            embedding_model=embedding_model,
+        )
+    except (ValueError, OSError) as error:
+        typer.secho(
+            f"Dense indexing failed: {error}",
+            fg=typer.colors.RED,
+            err=True,
+        )
+        raise typer.Exit(code=1) from error
+
+    typer.secho(
+        "Dense index built.",
+        fg=typer.colors.GREEN,
+    )
+    typer.echo(f"Model: {embedding_model.model_name}")
+    typer.echo(f"Chunks: {result.chunk_count}")
+    typer.echo(f"Dimension: {result.dimension}")
+    typer.echo(f"Embeddings: {result.embeddings_path}")
+    typer.echo(f"Metadata: {result.metadata_path}")
