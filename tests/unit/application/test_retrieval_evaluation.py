@@ -1,276 +1,119 @@
-import json
-from pathlib import Path
-
 import pytest
 
-from knowledge_base_assistant.application.lexical_retrieval_evaluation import (
-    evaluate_bm25_queries,
-    evaluate_bm25_retrieval,
+from knowledge_base_assistant.application.retrieval_evaluation import (
+    evaluate_queries,
+    evaluate_retrieval,
 )
 from knowledge_base_assistant.domain.models import Chunk
-from knowledge_base_assistant.serialization.jsonl import (
-    write_chunks_jsonl,
+from knowledge_base_assistant.evaluation.models import (
+    GoldenQuery,
+    RelevantChunk,
 )
+from knowledge_base_assistant.retrieval.models import SearchResult
 
 
-def make_chunk(
-    *,
-    chunk_id: str,
-    searchable_text: str,
-    relative_path: str | None = None,
-    section_path: tuple[str, ...] | None = None,
-) -> Chunk:
-    resolved_relative_path = (
-        relative_path
-        if relative_path is not None
-        else f"notes/{chunk_id}.md"
-    )
-    resolved_section_path = (
-        section_path
-        if section_path is not None
-        else (chunk_id,)
-    )
+class FakeRetriever:
+    def __init__(
+        self,
+        results_by_query: dict[str, list[SearchResult]],
+    ) -> None:
+        self._results_by_query = results_by_query
+        self.calls: list[tuple[str, int]] = []
 
-    return Chunk(
-        chunk_id=chunk_id,
-        document_id=f"doc-{chunk_id}",
-        source_name="test-source",
-        relative_path=resolved_relative_path,
-        title=(
-            resolved_section_path[-1]
-            if resolved_section_path
-            else None
+    def search(
+        self,
+        query: str,
+        *,
+        top_k: int,
+    ) -> list[SearchResult]:
+        self.calls.append((query, top_k))
+        return self._results_by_query.get(query, [])[:top_k]
+
+
+def test_evaluate_retrieval_calculates_aggregated_metrics() -> None:
+    chunks = _make_chunks()
+
+    queries = [
+        _make_query(
+            query_id="query-1",
+            query="first query",
+            relevant_chunk_ids=("chunk-1",),
+            chunks=chunks,
         ),
-        section_path=resolved_section_path,
-        content=searchable_text,
-        searchable_text=searchable_text,
-        chunk_index=0,
-        section_chunk_index=0,
-        start_line=1,
-        end_line=1,
-        content_hash=f"hash-{chunk_id}",
-    )
-
-
-def write_golden_queries(
-    path: Path,
-    records: list[dict[str, object]],
-) -> None:
-    path.write_text(
-        "".join(
-            json.dumps(
-                record,
-                ensure_ascii=False,
-            )
-            + "\n"
-            for record in records
+        _make_query(
+            query_id="query-2",
+            query="second query",
+            relevant_chunk_ids=("chunk-3",),
+            chunks=chunks,
         ),
-        encoding="utf-8",
+    ]
+
+    retriever = FakeRetriever(
+        {
+            "first query": [
+                _make_search_result(chunks[0], score=0.9, rank=1),
+                _make_search_result(chunks[1], score=0.8, rank=2),
+            ],
+            "second query": [
+                _make_search_result(chunks[1], score=0.9, rank=1),
+                _make_search_result(chunks[2], score=0.8, rank=2),
+            ],
+        }
     )
 
-
-def test_evaluate_bm25_retrieval_returns_average_metrics(
-    tmp_path: Path,
-) -> None:
-    chunks_path = tmp_path / "chunks.jsonl"
-    golden_path = tmp_path / "golden.jsonl"
-
-    write_chunks_jsonl(
-        [
-            make_chunk(
-                chunk_id="bm25",
-                searchable_text=(
-                    "BM25 lexical retrieval ranking"
-                ),
-            ),
-            make_chunk(
-                chunk_id="dense",
-                searchable_text=(
-                    "Dense semantic vector retrieval"
-                ),
-            ),
-            make_chunk(
-                chunk_id="docker",
-                searchable_text=(
-                    "Docker container image"
-                ),
-            ),
-        ],
-        chunks_path,
-    )
-
-    write_golden_queries(
-        golden_path,
-        [
-            {
-                "query_id": "q001",
-                "query": "BM25 lexical retrieval",
-                "relevant_chunks": [
-                    {
-                        "chunk_id": "bm25",
-                        "relative_path": "notes/bm25.md",
-                        "section_path": ["bm25"],
-                        "relevance": 2,
-                    }
-                ],
-                "notes": "BM25 query",
-            },
-            {
-                "query_id": "q002",
-                "query": "Dense semantic retrieval",
-                "relevant_chunks": [
-                    {
-                        "chunk_id": "dense",
-                        "relative_path": "notes/dense.md",
-                        "section_path": ["dense"],
-                        "relevance": 2,
-                    }
-                ],
-                "notes": "Dense retrieval query",
-            },
-            {
-                "query_id": "q003",
-                "query": "Question without answer",
-                "relevant_chunks": [],
-                "notes": "No answer",
-            },
-        ],
-    )
-
-    result = evaluate_bm25_retrieval(
-        golden_path=golden_path,
-        chunks_path=chunks_path,
+    result = evaluate_retrieval(
+        queries=queries,
+        chunks=chunks,
+        retriever=retriever,
         top_k=2,
     )
 
     assert result.top_k == 2
-    assert result.query_count == 3
-    assert result.evaluated_query_count == 2
-    assert result.no_answer_query_count == 1
-
-    assert result.hit_rate_at_k == 1.0
-    assert result.recall_at_k == 1.0
-    assert result.mean_reciprocal_rank == 1.0
-    assert result.ndcg_at_k == 1.0
-
-
-def test_evaluation_averages_metrics_across_queries(
-    tmp_path: Path,
-) -> None:
-    chunks_path = tmp_path / "chunks.jsonl"
-    golden_path = tmp_path / "golden.jsonl"
-
-    write_chunks_jsonl(
-        [
-            make_chunk(
-                chunk_id="chunk-a",
-                searchable_text="bm25 lexical retrieval",
-            ),
-            make_chunk(
-                chunk_id="chunk-b",
-                searchable_text="dense semantic retrieval",
-            ),
-            make_chunk(
-                chunk_id="chunk-x",
-                searchable_text=(
-                    "bm25 semantic unrelated retrieval"
-                ),
-            ),
-        ],
-        chunks_path,
-    )
-
-    write_golden_queries(
-        golden_path,
-        [
-            {
-                "query_id": "q001",
-                "query": "bm25 lexical",
-                "relevant_chunks": [
-                    {
-                        "chunk_id": "chunk-a",
-                        "relative_path": "notes/chunk-a.md",
-                        "section_path": ["chunk-a"],
-                        "relevance": 2,
-                    }
-                ],
-                "notes": "",
-            },
-            {
-                "query_id": "q002",
-                "query": "semantic retrieval",
-                "relevant_chunks": [
-                    {
-                        "chunk_id": "chunk-b",
-                        "relative_path": "notes/chunk-b.md",
-                        "section_path": ["chunk-b"],
-                        "relevance": 2,
-                    }
-                ],
-                "notes": "",
-            },
-        ],
-    )
-
-    result = evaluate_bm25_retrieval(
-        golden_path=golden_path,
-        chunks_path=chunks_path,
-        top_k=2,
-    )
-
     assert result.query_count == 2
     assert result.evaluated_query_count == 2
+    assert result.no_answer_query_count == 0
 
-    assert 0.0 <= result.hit_rate_at_k <= 1.0
-    assert 0.0 <= result.recall_at_k <= 1.0
-    assert 0.0 <= result.mean_reciprocal_rank <= 1.0
-    assert 0.0 <= result.ndcg_at_k <= 1.0
+    assert result.hit_rate_at_k == pytest.approx(1.0)
+    assert result.recall_at_k == pytest.approx(1.0)
+    assert result.mean_reciprocal_rank == pytest.approx(0.75)
+    assert result.ndcg_at_k > 0.0
+
+    assert retriever.calls == [
+        ("first query", 2),
+        ("second query", 2),
+    ]
 
 
-def test_evaluation_skips_no_answer_queries(
-    tmp_path: Path,
-) -> None:
-    chunks_path = tmp_path / "chunks.jsonl"
-    golden_path = tmp_path / "golden.jsonl"
+def test_evaluate_retrieval_skips_no_answer_queries() -> None:
+    chunks = _make_chunks()
 
-    write_chunks_jsonl(
-        [
-            make_chunk(
-                chunk_id="bm25",
-                searchable_text="BM25 lexical retrieval",
-            )
-        ],
-        chunks_path,
+    queries = [
+        _make_query(
+            query_id="query-1",
+            query="answerable query",
+            relevant_chunk_ids=("chunk-1",),
+            chunks=chunks,
+        ),
+        GoldenQuery(
+            query_id="query-2",
+            query="no answer query",
+            relevant_chunks=(),
+            notes="",
+        ),
+    ]
+
+    retriever = FakeRetriever(
+        {
+            "answerable query": [
+                _make_search_result(chunks[0], score=1.0, rank=1),
+            ],
+        }
     )
 
-    write_golden_queries(
-        golden_path,
-        [
-            {
-                "query_id": "q001",
-                "query": "BM25",
-                "relevant_chunks": [
-                    {
-                        "chunk_id": "bm25",
-                        "relative_path": "notes/bm25.md",
-                        "section_path": ["bm25"],
-                        "relevance": 2,
-                    }
-                ],
-                "notes": "",
-            },
-            {
-                "query_id": "q002",
-                "query": "Unknown information",
-                "relevant_chunks": [],
-                "notes": "No answer",
-            },
-        ],
-    )
-
-    result = evaluate_bm25_retrieval(
-        golden_path=golden_path,
-        chunks_path=chunks_path,
+    result = evaluate_retrieval(
+        queries=queries,
+        chunks=chunks,
+        retriever=retriever,
         top_k=1,
     )
 
@@ -278,176 +121,87 @@ def test_evaluation_skips_no_answer_queries(
     assert result.evaluated_query_count == 1
     assert result.no_answer_query_count == 1
 
-    assert result.hit_rate_at_k == 1.0
-    assert result.recall_at_k == 1.0
+    assert retriever.calls == [
+        ("answerable query", 1),
+    ]
 
 
-def test_evaluation_returns_zero_metrics_when_all_queries_are_no_answer(
-    tmp_path: Path,
-) -> None:
-    chunks_path = tmp_path / "chunks.jsonl"
-    golden_path = tmp_path / "golden.jsonl"
+def test_evaluate_retrieval_returns_zero_metrics_when_no_queries_are_answerable() -> None:
+    chunks = _make_chunks()
 
-    write_chunks_jsonl(
-        [
-            make_chunk(
-                chunk_id="bm25",
-                searchable_text="BM25 lexical retrieval",
-            )
-        ],
-        chunks_path,
+    queries = [
+        GoldenQuery(
+            query_id="query-1",
+            query="no answer query",
+            relevant_chunks=(),
+            notes="",
+        ),
+    ]
+
+    retriever = FakeRetriever({})
+
+    result = evaluate_retrieval(
+        queries=queries,
+        chunks=chunks,
+        retriever=retriever,
+        top_k=3,
     )
 
-    write_golden_queries(
-        golden_path,
-        [
-            {
-                "query_id": "q001",
-                "query": "No answer one",
-                "relevant_chunks": [],
-                "notes": "",
-            },
-            {
-                "query_id": "q002",
-                "query": "No answer two",
-                "relevant_chunks": [],
-                "notes": "",
-            },
-        ],
-    )
-
-    result = evaluate_bm25_retrieval(
-        golden_path=golden_path,
-        chunks_path=chunks_path,
-        top_k=5,
-    )
-
-    assert result.query_count == 2
+    assert result.query_count == 1
     assert result.evaluated_query_count == 0
-    assert result.no_answer_query_count == 2
-
+    assert result.no_answer_query_count == 1
     assert result.hit_rate_at_k == 0.0
     assert result.recall_at_k == 0.0
     assert result.mean_reciprocal_rank == 0.0
     assert result.ndcg_at_k == 0.0
 
+    assert retriever.calls == []
+
 
 @pytest.mark.parametrize(
     "top_k",
-    [
-        0,
-        -1,
-    ],
+    [0, -1],
 )
-def test_evaluation_rejects_invalid_top_k(
-    tmp_path: Path,
+def test_evaluate_retrieval_rejects_invalid_top_k(
     top_k: int,
 ) -> None:
-    chunks_path = tmp_path / "chunks.jsonl"
-    golden_path = tmp_path / "golden.jsonl"
-
-    chunks_path.write_text("", encoding="utf-8")
-    golden_path.write_text("", encoding="utf-8")
-
     with pytest.raises(
         ValueError,
-        match="top_k must be at least 1",
+        match=f"top_k must be at least 1, got {top_k}",
     ):
-        evaluate_bm25_retrieval(
-            golden_path=golden_path,
-            chunks_path=chunks_path,
+        evaluate_retrieval(
+            queries=[],
+            chunks=[],
+            retriever=FakeRetriever({}),
             top_k=top_k,
         )
 
 
-def test_evaluation_validates_golden_dataset_against_chunks(
-    tmp_path: Path,
-) -> None:
-    chunks_path = tmp_path / "chunks.jsonl"
-    golden_path = tmp_path / "golden.jsonl"
+def test_evaluate_queries_returns_detailed_results() -> None:
+    chunks = _make_chunks()
 
-    write_chunks_jsonl(
-        [
-            make_chunk(
-                chunk_id="existing",
-                searchable_text="BM25 retrieval",
-            )
-        ],
-        chunks_path,
+    queries = [
+        _make_query(
+            query_id="query-1",
+            query="test query",
+            relevant_chunk_ids=("chunk-2",),
+            chunks=chunks,
+        ),
+    ]
+
+    retriever = FakeRetriever(
+        {
+            "test query": [
+                _make_search_result(chunks[0], score=0.9, rank=1),
+                _make_search_result(chunks[1], score=0.8, rank=2),
+            ],
+        }
     )
 
-    write_golden_queries(
-        golden_path,
-        [
-            {
-                "query_id": "q001",
-                "query": "BM25",
-                "relevant_chunks": [
-                    {
-                        "chunk_id": "missing",
-                        "relative_path": "notes/missing.md",
-                        "section_path": ["missing"],
-                        "relevance": 2,
-                    }
-                ],
-                "notes": "",
-            }
-        ],
-    )
-
-    with pytest.raises(
-        ValueError,
-        match="unknown chunk_id",
-    ):
-        evaluate_bm25_retrieval(
-            golden_path=golden_path,
-            chunks_path=chunks_path,
-            top_k=5,
-        )
-        
-        
-def test_evaluate_bm25_queries_returns_query_details(
-    tmp_path: Path,
-) -> None:
-    chunks_path = tmp_path / "chunks.jsonl"
-    golden_path = tmp_path / "golden.jsonl"
-
-    write_chunks_jsonl(
-        [
-            make_chunk(
-                chunk_id="bm25",
-                searchable_text="BM25 lexical retrieval ranking",
-            ),
-            make_chunk(
-                chunk_id="dense",
-                searchable_text="Dense semantic vector search",
-            ),
-        ],
-        chunks_path,
-    )
-
-    write_golden_queries(
-        golden_path,
-        [
-            {
-                "query_id": "q001",
-                "query": "BM25 lexical retrieval",
-                "relevant_chunks": [
-                    {
-                        "chunk_id": "bm25",
-                        "relative_path": "notes/bm25.md",
-                        "section_path": ["bm25"],
-                        "relevance": 2,
-                    }
-                ],
-                "notes": "",
-            }
-        ],
-    )
-
-    results = evaluate_bm25_queries(
-        golden_path=golden_path,
-        chunks_path=chunks_path,
+    results = evaluate_queries(
+        queries=queries,
+        chunks=chunks,
+        retriever=retriever,
         top_k=2,
     )
 
@@ -455,210 +209,134 @@ def test_evaluate_bm25_queries_returns_query_details(
 
     result = results[0]
 
-    assert result.query_id == "q001"
-    assert result.query == "BM25 lexical retrieval"
-    assert result.relevant_chunk_ids == ("bm25",)
-    assert result.first_relevant_rank == 1
-
-    assert result.hit_rate_at_k == 1.0
-    assert result.recall_at_k == 1.0
-    assert result.reciprocal_rank == 1.0
-    assert result.ndcg_at_k == 1.0
-
-    assert len(result.retrieved_chunks) == 1
-
-    retrieved = result.retrieved_chunks[0]
-
-    assert retrieved.chunk_id == "bm25"
-    assert retrieved.rank == 1
-    assert retrieved.score > 0.0
-    assert retrieved.relevance == 2
-    
-    
-def test_evaluate_bm25_queries_marks_retrieved_relevance(
-    tmp_path: Path,
-) -> None:
-    chunks_path = tmp_path / "chunks.jsonl"
-    golden_path = tmp_path / "golden.jsonl"
-
-    write_chunks_jsonl(
-        [
-            make_chunk(
-                chunk_id="relevant",
-                searchable_text="semantic retrieval",
-            ),
-            make_chunk(
-                chunk_id="irrelevant",
-                searchable_text=(
-                    "semantic retrieval semantic retrieval"
-                ),
-            ),
-        ],
-        chunks_path,
-    )
-
-    write_golden_queries(
-        golden_path,
-        [
-            {
-                "query_id": "q001",
-                "query": "semantic retrieval",
-                "relevant_chunks": [
-                    {
-                        "chunk_id": "relevant",
-                        "relative_path": "notes/relevant.md",
-                        "section_path": ["relevant"],
-                        "relevance": 2,
-                    }
-                ],
-                "notes": "",
-            }
-        ],
-    )
-
-    results = evaluate_bm25_queries(
-        golden_path=golden_path,
-        chunks_path=chunks_path,
-        top_k=2,
-    )
-
-    result = results[0]
-
-    assert len(result.retrieved_chunks) == 2
-    assert result.retrieved_chunks[0].chunk_id == "irrelevant"
-    assert result.retrieved_chunks[0].relevance == 0
-    assert result.retrieved_chunks[1].chunk_id == "relevant"
-    assert result.retrieved_chunks[1].relevance == 2
-
+    assert result.query_id == "query-1"
+    assert result.query == "test query"
+    assert result.relevant_chunk_ids == ("chunk-2",)
     assert result.first_relevant_rank == 2
-    assert result.reciprocal_rank == 0.5
-    
-    
-def test_evaluate_bm25_queries_sets_no_first_relevant_rank(
-    tmp_path: Path,
-) -> None:
-    chunks_path = tmp_path / "chunks.jsonl"
-    golden_path = tmp_path / "golden.jsonl"
 
-    write_chunks_jsonl(
-        [
-            make_chunk(
-                chunk_id="relevant",
-                searchable_text="docker container images",
-            ),
-            make_chunk(
-                chunk_id="retrieved",
-                searchable_text="BM25 lexical retrieval",
-            ),
-        ],
-        chunks_path,
-    )
+    assert result.hit_rate_at_k == pytest.approx(1.0)
+    assert result.recall_at_k == pytest.approx(1.0)
+    assert result.reciprocal_rank == pytest.approx(0.5)
 
-    write_golden_queries(
-        golden_path,
-        [
-            {
-                "query_id": "q001",
-                "query": "BM25 retrieval",
-                "relevant_chunks": [
-                    {
-                        "chunk_id": "relevant",
-                        "relative_path": "notes/relevant.md",
-                        "section_path": ["relevant"],
-                        "relevance": 2,
-                    }
-                ],
-                "notes": "",
-            }
-        ],
-    )
+    assert [chunk.chunk_id for chunk in result.retrieved_chunks] == [
+        "chunk-1",
+        "chunk-2",
+    ]
+    assert [chunk.relevance for chunk in result.retrieved_chunks] == [
+        0,
+        1,
+    ]
 
-    results = evaluate_bm25_queries(
-        golden_path=golden_path,
-        chunks_path=chunks_path,
+
+def test_evaluate_queries_skips_no_answer_queries() -> None:
+    chunks = _make_chunks()
+
+    queries = [
+        GoldenQuery(
+            query_id="query-1",
+            query="no answer query",
+            relevant_chunks=(),
+            notes="",
+        ),
+    ]
+
+    retriever = FakeRetriever({})
+
+    results = evaluate_queries(
+        queries=queries,
+        chunks=chunks,
+        retriever=retriever,
         top_k=1,
     )
 
-    result = results[0]
+    assert results == ()
+    assert retriever.calls == []
 
-    assert result.first_relevant_rank is None
-    assert result.hit_rate_at_k == 0.0
-    assert result.recall_at_k == 0.0
-    assert result.reciprocal_rank == 0.0
-    assert result.ndcg_at_k == 0.0
 
-    assert result.retrieved_chunks[0].chunk_id == "retrieved"
-    assert result.retrieved_chunks[0].relevance == 0
-    
-    
-def test_evaluate_bm25_queries_skips_no_answer_queries(
-    tmp_path: Path,
-) -> None:
-    chunks_path = tmp_path / "chunks.jsonl"
-    golden_path = tmp_path / "golden.jsonl"
-
-    write_chunks_jsonl(
-        [
-            make_chunk(
-                chunk_id="bm25",
-                searchable_text="BM25 lexical retrieval",
-            )
-        ],
-        chunks_path,
-    )
-
-    write_golden_queries(
-        golden_path,
-        [
-            {
-                "query_id": "answerable",
-                "query": "BM25",
-                "relevant_chunks": [
-                    {
-                        "chunk_id": "bm25",
-                        "relative_path": "notes/bm25.md",
-                        "section_path": ["bm25"],
-                        "relevance": 2,
-                    }
-                ],
-                "notes": "",
-            },
-            {
-                "query_id": "no-answer",
-                "query": "Missing topic",
-                "relevant_chunks": [],
-                "notes": "",
-            },
-        ],
-    )
-
-    results = evaluate_bm25_queries(
-        golden_path=golden_path,
-        chunks_path=chunks_path,
-        top_k=1,
-    )
-
-    assert len(results) == 1
-    assert results[0].query_id == "answerable"
-    
-    
-@pytest.mark.parametrize("top_k", [0, -1])
-def test_evaluate_bm25_queries_rejects_invalid_top_k(
-    tmp_path: Path,
+@pytest.mark.parametrize(
+    "top_k",
+    [0, -1],
+)
+def test_evaluate_queries_rejects_invalid_top_k(
     top_k: int,
 ) -> None:
-    chunks_path = tmp_path / "chunks.jsonl"
-    golden_path = tmp_path / "golden.jsonl"
-
-    chunks_path.write_text("", encoding="utf-8")
-    golden_path.write_text("", encoding="utf-8")
-
     with pytest.raises(
         ValueError,
-        match="top_k must be at least 1",
+        match=f"top_k must be at least 1, got {top_k}",
     ):
-        evaluate_bm25_queries(
-            golden_path=golden_path,
-            chunks_path=chunks_path,
+        evaluate_queries(
+            queries=[],
+            chunks=[],
+            retriever=FakeRetriever({}),
             top_k=top_k,
         )
+
+
+def _make_search_result(
+    chunk: Chunk,
+    *,
+    score: float,
+    rank: int,
+) -> SearchResult:
+    return SearchResult(
+        chunk=chunk,
+        score=score,
+        rank=rank,
+    )
+
+
+def _make_query(
+    *,
+    query_id: str,
+    query: str,
+    relevant_chunk_ids: tuple[str, ...],
+    chunks: list[Chunk],
+) -> GoldenQuery:
+    chunks_by_id = {
+        chunk.chunk_id: chunk
+        for chunk in chunks
+    }
+
+    return GoldenQuery(
+        query_id=query_id,
+        query=query,
+        relevant_chunks=tuple(
+            RelevantChunk(
+                chunk_id=chunk_id,
+                relative_path=chunks_by_id[chunk_id].relative_path,
+                section_path=chunks_by_id[chunk_id].section_path,
+                relevance=1,
+            )
+            for chunk_id in relevant_chunk_ids
+        ),
+        notes="",
+    )
+
+
+def _make_chunks() -> list[Chunk]:
+    return [
+        _make_chunk("chunk-1", 0),
+        _make_chunk("chunk-2", 1),
+        _make_chunk("chunk-3", 2),
+    ]
+
+
+def _make_chunk(
+    chunk_id: str,
+    chunk_index: int,
+) -> Chunk:
+    return Chunk(
+        chunk_id=chunk_id,
+        document_id="document-1",
+        source_name="test-source",
+        relative_path="notes/test.md",
+        title="Test",
+        section_path=("Test",),
+        content=f"Content {chunk_index}",
+        searchable_text=f"Searchable text {chunk_index}",
+        chunk_index=chunk_index,
+        section_chunk_index=chunk_index,
+        start_line=1,
+        end_line=2,
+        content_hash=f"content-hash-{chunk_index}",
+    )
