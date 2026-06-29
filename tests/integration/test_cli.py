@@ -457,7 +457,7 @@ def test_search_command_displays_ranked_results(
     result = runner.invoke(
         app,
         [
-            "search",
+            "lexical-search",
             "BM25 lexical retrieval",
             "--chunks",
             str(chunks_path),
@@ -491,7 +491,7 @@ def test_search_command_reports_no_matches(
     result = runner.invoke(
         app,
         [
-            "search",
+            "lexical-search",
             "unrelated-unknown-term",
             "--chunks",
             str(chunks_path),
@@ -521,7 +521,7 @@ def test_search_command_truncates_content(
     result = runner.invoke(
         app,
         [
-            "search",
+            "lexical-search",
             "BM25",
             "--chunks",
             str(chunks_path),
@@ -551,7 +551,7 @@ def test_search_command_hides_content_when_limit_is_zero(
     result = runner.invoke(
         app,
         [
-            "search",
+            "lexical-search",
             "BM25",
             "--chunks",
             str(chunks_path),
@@ -577,7 +577,7 @@ def test_search_command_reports_invalid_chunks_jsonl(
     result = runner.invoke(
         app,
         [
-            "search",
+            "lexical-search",
             "BM25",
             "--chunks",
             str(chunks_path),
@@ -616,7 +616,7 @@ def test_search_command_separates_multiple_results(
     result = runner.invoke(
         app,
         [
-            "search",
+            "lexical-search",
             "BM25 retrieval",
             "--chunks",
             str(chunks_path),
@@ -664,7 +664,7 @@ def test_evaluate_command_displays_metrics(
     result = runner.invoke(
         app,
         [
-            "evaluate",
+            "lexical-evaluate",
             str(golden_path),
             str(chunks_path),
             "--top-k",
@@ -710,7 +710,7 @@ def test_evaluate_command_reports_invalid_golden_dataset(
     result = runner.invoke(
         app,
         [
-            "evaluate",
+            "lexical-evaluate",
             str(golden_path),
             str(chunks_path),
         ],
