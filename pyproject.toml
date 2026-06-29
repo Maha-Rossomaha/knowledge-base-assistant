@@ -8,7 +8,16 @@ dependencies = [
     "numpy>=2.5.0",
     "sentence-transformers>=5.6.0",
     "typer>=0.26.7",
+    "torch==2.11.0",
 ]
+
+[tool.uv.sources]
+torch = { index = "pytorch-cu126" }
+
+[[tool.uv.index]]
+name = "pytorch-cu126"
+url = "https://download.pytorch.org/whl/cu126"
+explicit = true
 
 [project.scripts]
 copilot = "knowledge_base_assistant.cli:app"
@@ -45,5 +54,5 @@ select = [
 [tool.mypy]
 python_version = "3.12"
 strict = true
-packages = ["assistant"]
+packages = ["knowledge_base_assistant"]
 mypy_path = "src"
