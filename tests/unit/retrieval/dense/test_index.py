@@ -162,7 +162,7 @@ def test_dense_index_search_rejects_non_vector_query_embedding() -> None:
 
     with pytest.raises(
         ValueError,
-        match="Query must be a one-dimensional array",
+        match="Query embedding must be a one-dimensional array",
     ):
         index.search(
             query="test query",
@@ -441,3 +441,67 @@ def test_dense_index_rejects_not_normalized_metadata() -> None:
             metadata=metadata,
             embedding_model=FakeEmbeddingModel(),
         )
+        
+        
+def test_dense_index_search_rejects_non_finite_query_embedding() -> None:
+    model = FakeEmbeddingModel(
+        query_embedding=np.array(
+            [np.nan, 0.0, 0.0],
+            dtype=np.float32,
+        ),
+    )
+
+    index = _make_index(
+        embedding_model=model,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="Query embedding must contain only finite values",
+    ):
+        index.search(
+            query="test query",
+            top_k=1,
+        )
+        
+        
+@pytest.mark.parametrize(
+    "invalid_value",
+    [
+        np.nan,
+        np.inf,
+        -np.inf,
+    ],
+)
+def test_dense_index_search_rejects_non_finite_query_embedding(
+    invalid_value: float,
+) -> None:
+    model = FakeEmbeddingModel(
+        query_embedding=np.array(
+            [invalid_value, 0.0, 0.0],
+            dtype=np.float32,
+        ),
+    )
+
+    index = _make_index(
+        embedding_model=model,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="Query embedding must contain only finite values",
+    ):
+        index.search(
+            query="test query",
+            top_k=1,
+        )
+        
+        
+def test_dense_index_chunks_returns_immutable_sequence() -> None:
+    index = _make_index()
+
+    first_result = index.chunks
+    second_result = index.chunks
+
+    assert first_result == second_result
+    assert isinstance(first_result, tuple)
