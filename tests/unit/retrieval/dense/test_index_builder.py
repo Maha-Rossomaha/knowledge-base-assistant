@@ -2,7 +2,9 @@ import numpy as np
 import pytest
 
 from knowledge_base_assistant.domain.models import Chunk
-from knowledge_base_assistant.retrieval.dense.embedding import EmbeddingModelConfig
+from knowledge_base_assistant.retrieval.dense.embedding import (
+    EmbeddingModelConfig,
+)
 from knowledge_base_assistant.retrieval.dense.index_builder import (
     build_dense_index_data,
     normalize_embeddings,
@@ -14,12 +16,18 @@ class FakeEmbeddingModel:
         self,
         embeddings: object,
         *,
+        provider: str = "fake",
         model_name: str = "fake-model",
         dimension: int = 3,
+        query_prefix: str = "",
+        document_prefix: str = "",
     ) -> None:
         self._embeddings = embeddings
+        self._provider = provider
         self._model_name = model_name
         self._dimension = dimension
+        self._query_prefix = query_prefix
+        self._document_prefix = document_prefix
         self.received_texts: list[str] | None = None
 
     @property
@@ -29,15 +37,15 @@ class FakeEmbeddingModel:
     @property
     def dimension(self) -> int:
         return self._dimension
-    
+
     @property
     def config(self) -> EmbeddingModelConfig:
         return EmbeddingModelConfig(
-            provider="fake",
-            model_name=self.model_name,
-            dimension=self.dimension,
-            query_prefix="",
-            document_prefix="",
+            provider=self._provider,
+            model_name=self._model_name,
+            dimension=self._dimension,
+            query_prefix=self._query_prefix,
+            document_prefix=self._document_prefix,
         )
 
     def embed_documents(
@@ -121,7 +129,10 @@ def test_build_dense_index_data_returns_normalized_float32_embeddings() -> None:
     assert embeddings.dtype == np.float32
 
     np.testing.assert_allclose(
-        np.linalg.norm(embeddings, axis=1),
+        np.linalg.norm(
+            embeddings,
+            axis=1,
+        ),
         np.ones(2),
         rtol=1e-6,
         atol=1e-6,
@@ -162,8 +173,11 @@ def test_build_dense_index_data_creates_expected_metadata() -> None:
             ],
             dtype=np.float32,
         ),
+        provider="sentence-transformers",
         model_name="test-embedding-model",
         dimension=3,
+        query_prefix="query: ",
+        document_prefix="passage: ",
     )
 
     _, metadata = build_dense_index_data(
@@ -172,17 +186,53 @@ def test_build_dense_index_data_creates_expected_metadata() -> None:
         chunks_sha256="chunks-hash",
     )
 
-    assert metadata.schema_version == 1
-    assert metadata.embedding_model.model_name == "test-embedding-model"
-    assert metadata.embedding_model.dimension == 3
+    assert metadata.schema_version == 2
+
+    assert metadata.embedding_model == EmbeddingModelConfig(
+        provider="sentence-transformers",
+        model_name="test-embedding-model",
+        dimension=3,
+        query_prefix="query: ",
+        document_prefix="passage: ",
+    )
+
     assert metadata.normalized is True
     assert metadata.chunks_sha256 == "chunks-hash"
-    assert metadata.chunk_ids == ("chunk-1", "chunk-2")
+    assert metadata.chunk_ids == (
+        "chunk-1",
+        "chunk-2",
+    )
+
+
+def test_build_dense_index_data_uses_exact_model_config() -> None:
+    model = FakeEmbeddingModel(
+        np.empty(
+            (0, 3),
+            dtype=np.float32,
+        ),
+        provider="custom-provider",
+        model_name="custom-model",
+        dimension=3,
+        query_prefix="question: ",
+        document_prefix="document: ",
+    )
+
+    _, metadata = build_dense_index_data(
+        [],
+        model,
+        chunks_sha256="chunks-hash",
+    )
+
+    assert metadata.embedding_model is not model.config
+    assert metadata.embedding_model == model.config
 
 
 def test_build_dense_index_data_rejects_empty_model_name() -> None:
     model = FakeEmbeddingModel(
-        np.empty((0, 3), dtype=np.float32),
+        np.empty(
+            (0, 3),
+            dtype=np.float32,
+        ),
         model_name="",
     )
 
@@ -197,12 +247,21 @@ def test_build_dense_index_data_rejects_empty_model_name() -> None:
         )
 
 
-@pytest.mark.parametrize("dimension", [0, -1])
+@pytest.mark.parametrize(
+    "dimension",
+    [
+        0,
+        -1,
+    ],
+)
 def test_build_dense_index_data_rejects_invalid_model_dimension(
     dimension: int,
 ) -> None:
     model = FakeEmbeddingModel(
-        np.empty((0, 0), dtype=np.float32),
+        np.empty(
+            (0, 0),
+            dtype=np.float32,
+        ),
         dimension=dimension,
     )
 
@@ -219,7 +278,10 @@ def test_build_dense_index_data_rejects_invalid_model_dimension(
 
 def test_build_dense_index_data_rejects_empty_chunks_sha256() -> None:
     model = FakeEmbeddingModel(
-        np.empty((0, 3), dtype=np.float32)
+        np.empty(
+            (0, 3),
+            dtype=np.float32,
+        )
     )
 
     with pytest.raises(
@@ -247,7 +309,10 @@ def test_build_dense_index_data_rejects_duplicate_chunk_ids() -> None:
         ),
     ]
     model = FakeEmbeddingModel(
-        np.ones((2, 3), dtype=np.float32)
+        np.ones(
+            (2, 3),
+            dtype=np.float32,
+        )
     )
 
     with pytest.raises(
@@ -287,9 +352,18 @@ def test_build_dense_index_data_rejects_non_numpy_result() -> None:
 @pytest.mark.parametrize(
     "embeddings",
     [
-        np.array([1.0, 2.0, 3.0], dtype=np.float32),
-        np.array(1.0, dtype=np.float32),
-        np.ones((1, 1, 3), dtype=np.float32),
+        np.array(
+            [1.0, 2.0, 3.0],
+            dtype=np.float32,
+        ),
+        np.array(
+            1.0,
+            dtype=np.float32,
+        ),
+        np.ones(
+            (1, 1, 3),
+            dtype=np.float32,
+        ),
     ],
 )
 def test_build_dense_index_data_rejects_non_two_dimensional_result(
@@ -302,7 +376,9 @@ def test_build_dense_index_data_rejects_non_two_dimensional_result(
             chunk_index=0,
         )
     ]
-    model = FakeEmbeddingModel(embeddings)
+    model = FakeEmbeddingModel(
+        embeddings,
+    )
 
     with pytest.raises(
         ValueError,
@@ -329,12 +405,18 @@ def test_build_dense_index_data_rejects_wrong_row_count() -> None:
         ),
     ]
     model = FakeEmbeddingModel(
-        np.ones((1, 3), dtype=np.float32)
+        np.ones(
+            (1, 3),
+            dtype=np.float32,
+        )
     )
 
     with pytest.raises(
         ValueError,
-        match="Dense embeddings row count does not match chunks count",
+        match=(
+            "Dense embeddings row count "
+            "does not match chunks count"
+        ),
     ):
         build_dense_index_data(
             chunks,
@@ -352,13 +434,19 @@ def test_build_dense_index_data_rejects_wrong_dimension() -> None:
         )
     ]
     model = FakeEmbeddingModel(
-        np.ones((1, 2), dtype=np.float32),
+        np.ones(
+            (1, 2),
+            dtype=np.float32,
+        ),
         dimension=3,
     )
 
     with pytest.raises(
         ValueError,
-        match="Dense embeddings dimension does not match embedding model",
+        match=(
+            "Dense embeddings dimension "
+            "does not match embedding model"
+        ),
     ):
         build_dense_index_data(
             chunks,
@@ -413,7 +501,13 @@ def test_build_dense_index_data_rejects_non_finite_values(
     ]
     model = FakeEmbeddingModel(
         np.array(
-            [[invalid_value, 1.0, 2.0]],
+            [
+                [
+                    invalid_value,
+                    1.0,
+                    2.0,
+                ]
+            ],
             dtype=np.float32,
         )
     )
@@ -438,7 +532,9 @@ def test_normalize_embeddings_normalizes_each_row_independently() -> None:
         dtype=np.float32,
     )
 
-    normalized = normalize_embeddings(embeddings)
+    normalized = normalize_embeddings(
+        embeddings,
+    )
 
     np.testing.assert_allclose(
         normalized,
@@ -467,7 +563,9 @@ def test_normalize_embeddings_rejects_zero_vector() -> None:
         ValueError,
         match="Dense embeddings must not contain zero vectors",
     ):
-        normalize_embeddings(embeddings)
+        normalize_embeddings(
+            embeddings,
+        )
 
 
 def _make_chunk(
