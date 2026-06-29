@@ -4,6 +4,9 @@ from typing import Annotated
 import typer
 
 from knowledge_base_assistant.application.dense_indexing import build_dense_index
+from knowledge_base_assistant.application.dense_retrieval_evaluation import (
+    evaluate_dense_retrieval,
+)
 from knowledge_base_assistant.application.dense_search import (
     search_dense_index,
 )
@@ -807,3 +810,135 @@ def dense_search(
 
         if result.rank != len(results):
             typer.echo("")
+            
+            
+@app.command("dense-evaluate")
+def dense_evaluate(
+    golden_path: Annotated[
+        Path,
+        typer.Argument(
+            help="Path to the golden queries JSONL file.",
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+            readable=True,
+            resolve_path=True,
+        ),
+    ],
+    chunks_path: Annotated[
+        Path,
+        typer.Argument(
+            help="Path to the chunks JSONL file.",
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+            readable=True,
+            resolve_path=True,
+        ),
+    ],
+    embeddings_path: Annotated[
+        Path,
+        typer.Option(
+            "--embeddings",
+            help="Path to the dense embeddings NPY file.",
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+            readable=True,
+            resolve_path=True,
+        ),
+    ] = Path("artifacts/dense/embeddings.npy"),
+    metadata_path: Annotated[
+        Path,
+        typer.Option(
+            "--metadata",
+            help="Path to the dense-index metadata JSON file.",
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+            readable=True,
+            resolve_path=True,
+        ),
+    ] = Path("artifacts/dense/metadata.json"),
+    top_k: Annotated[
+        int,
+        typer.Option(
+            "--top-k",
+            help="Number of retrieved chunks evaluated per query.",
+            min=1,
+        ),
+    ] = 5,
+    batch_size: Annotated[
+        int,
+        typer.Option(
+            "--batch-size",
+            help="Number of queries encoded in one batch.",
+            min=1,
+        ),
+    ] = 32,
+    device: Annotated[
+        str,
+        typer.Option(
+            "--device",
+            help="Embedding inference device, for example cpu or cuda.",
+        ),
+    ] = "cpu",
+) -> None:
+    """Evaluate dense retrieval against a golden dataset."""
+
+    try:
+        metadata = read_dense_index_metadata(metadata_path)
+
+        embedding_model = (
+            create_sentence_transformer_embedding_model(
+                metadata.embedding_model,
+                batch_size=batch_size,
+                device=device,
+            )
+        )
+
+        result = evaluate_dense_retrieval(
+            golden_path=golden_path,
+            chunks_path=chunks_path,
+            embeddings_path=embeddings_path,
+            metadata_path=metadata_path,
+            embedding_model=embedding_model,
+            top_k=top_k,
+        )
+    except (ValueError, OSError) as error:
+        typer.secho(
+            f"Dense retrieval evaluation failed: {error}",
+            fg=typer.colors.RED,
+            err=True,
+        )
+        raise typer.Exit(code=1) from error
+
+    typer.secho(
+        "Dense retrieval evaluation completed.",
+        fg=typer.colors.GREEN,
+    )
+    typer.echo(f"Top-K: {result.top_k}")
+    typer.echo(f"Queries: {result.query_count}")
+    typer.echo(
+        f"Evaluated queries: {result.evaluated_query_count}"
+    )
+    typer.echo(
+        f"No-answer queries: {result.no_answer_query_count}"
+    )
+    typer.echo("")
+    typer.echo(
+        f"HitRate@{result.top_k}: "
+        f"{result.hit_rate_at_k:.4f}"
+    )
+    typer.echo(
+        f"Recall@{result.top_k}: "
+        f"{result.recall_at_k:.4f}"
+    )
+    typer.echo(
+        f"MRR@{result.top_k}: "
+        f"{result.mean_reciprocal_rank:.4f}"
+    )
+    typer.echo(
+        f"nDCG@{result.top_k}: "
+        f"{result.ndcg_at_k:.4f}"
+    )
