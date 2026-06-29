@@ -62,10 +62,15 @@ def test_sentence_transformer_embedding_model_initializes(
         model_name="fake-model",
         batch_size=16,
         device="cpu",
+        query_prefix="query: ",
+        document_prefix="passage: ",
     )
 
-    assert model.model_name == "fake-model"
-    assert model.dimension == 3
+    assert model.config.provider == "sentence-transformers"
+    assert model.config.model_name == "fake-model"
+    assert model.config.dimension == 3
+    assert model.config.query_prefix == "query: "
+    assert model.config.document_prefix == "passage: "
 
 
 @pytest.mark.parametrize(
@@ -123,10 +128,14 @@ def test_embed_documents_returns_embeddings_and_passes_expected_arguments(
         model_name="fake-model",
         batch_size=16,
         device="cpu",
+        document_prefix="passage: ",
     )
 
     embeddings = model.embed_documents(
-        ["first text", "second text"],
+        [
+            "first text",
+            "second text",
+        ],
     )
 
     np.testing.assert_array_equal(
@@ -144,7 +153,10 @@ def test_embed_documents_returns_embeddings_and_passes_expected_arguments(
 
     assert fake_model.document_calls == [
         (
-            ["first text", "second text"],
+            [
+                "passage: first text",
+                "passage: second text"
+            ],
             {
                 "batch_size": 16,
                 "convert_to_numpy": True,
@@ -168,6 +180,7 @@ def test_embed_query_returns_embedding_and_passes_expected_arguments(
         model_name="fake-model",
         batch_size=16,
         device="cpu",
+        query_prefix="query: ",
     )
 
     embedding = model.embed_query("test query")
@@ -184,7 +197,7 @@ def test_embed_query_returns_embedding_and_passes_expected_arguments(
 
     assert fake_model.query_calls == [
         (
-            "test query",
+            "query: test query",
             {
                 "batch_size": 16,
                 "convert_to_numpy": True,

@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 
 from knowledge_base_assistant.domain.models import Chunk
+from knowledge_base_assistant.retrieval.dense.embedding import EmbeddingModelConfig
 from knowledge_base_assistant.retrieval.dense.index import DenseIndex
 from knowledge_base_assistant.retrieval.dense.models import DenseIndexMetadata
 
@@ -30,6 +31,16 @@ class FakeEmbeddingModel:
     @property
     def dimension(self) -> int:
         return self._dimension
+    
+    @property
+    def config(self) -> EmbeddingModelConfig:
+        return EmbeddingModelConfig(
+            provider="fake",
+            model_name=self.model_name,
+            dimension=self.dimension,
+            query_prefix="",
+            document_prefix="",
+        )
 
     def embed_documents(
         self,

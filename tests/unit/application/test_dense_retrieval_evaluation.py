@@ -9,6 +9,7 @@ from knowledge_base_assistant.evaluation.models import (
     QueryEvaluationResult,
     RetrievalEvaluationResult,
 )
+from knowledge_base_assistant.retrieval.dense.embedding import EmbeddingModelConfig
 
 
 class FakeEmbeddingModel:
@@ -19,6 +20,16 @@ class FakeEmbeddingModel:
     @property
     def dimension(self) -> int:
         return 3
+    
+    @property
+    def config(self) -> EmbeddingModelConfig:
+        return EmbeddingModelConfig(
+            provider="fake",
+            model_name=self.model_name,
+            dimension=self.dimension,
+            query_prefix="",
+            document_prefix="",
+        )
 
     def embed_documents(self, texts: list[str]):
         raise NotImplementedError
