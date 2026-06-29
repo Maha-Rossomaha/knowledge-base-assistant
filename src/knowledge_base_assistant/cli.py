@@ -19,6 +19,10 @@ from knowledge_base_assistant.application.lexical_retrieval_evaluation import (
     evaluate_bm25_retrieval,
 )
 from knowledge_base_assistant.application.lexical_search import search_chunks_file
+from knowledge_base_assistant.application.retrieval_analysis import (
+    RetrieverType,
+    run_retrieval_analysis,
+)
 from knowledge_base_assistant.application.statistics import calculate_chunk_statistics_from_jsonl
 from knowledge_base_assistant.ingestion.chunker import ChunkerConfig
 from knowledge_base_assistant.retrieval.dense.sentence_transformer import (
@@ -942,3 +946,177 @@ def dense_evaluate(
         f"nDCG@{result.top_k}: "
         f"{result.ndcg_at_k:.4f}"
     )
+    
+    
+@app.command("retrieval-analyze")
+def retrieval_analyze(
+    golden_path: Annotated[
+        Path,
+        typer.Argument(
+            help="Path to the golden queries JSONL file.",
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+            readable=True,
+            resolve_path=True,
+        ),
+    ],
+    chunks_path: Annotated[
+        Path,
+        typer.Argument(
+            help="Path to the chunks JSONL file.",
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+            readable=True,
+            resolve_path=True,
+        ),
+    ],
+    retriever_type: Annotated[
+        RetrieverType,
+        typer.Option(
+            "--retriever",
+            help="Retriever used for analysis.",
+        ),
+    ],
+    output_root: Annotated[
+        Path,
+        typer.Option(
+            "--output-root",
+            help="Root directory for analysis artifacts.",
+            file_okay=False,
+            dir_okay=True,
+            resolve_path=True,
+        ),
+    ] = Path("artifacts/evaluation"),
+    top_k: Annotated[
+        int,
+        typer.Option(
+            "--top-k",
+            help="Number of retrieved chunks analyzed per query.",
+            min=1,
+        ),
+    ] = 5,
+    k1: Annotated[
+        float,
+        typer.Option(
+            "--k1",
+            help="BM25 term-frequency saturation parameter.",
+            min=0.000001,
+        ),
+    ] = 1.5,
+    b: Annotated[
+        float,
+        typer.Option(
+            "--b",
+            help="BM25 document-length normalization parameter.",
+            min=0.0,
+            max=1.0,
+        ),
+    ] = 0.75,
+    embeddings_path: Annotated[
+        Path,
+        typer.Option(
+            "--embeddings",
+            help="Path to the dense embeddings NPY file.",
+            file_okay=True,
+            dir_okay=False,
+            resolve_path=True,
+        ),
+    ] = Path("artifacts/dense/embeddings.npy"),
+    metadata_path: Annotated[
+        Path,
+        typer.Option(
+            "--metadata",
+            help="Path to the dense-index metadata JSON file.",
+            file_okay=True,
+            dir_okay=False,
+            resolve_path=True,
+        ),
+    ] = Path("artifacts/dense/metadata.json"),
+    batch_size: Annotated[
+        int,
+        typer.Option(
+            "--batch-size",
+            help="Number of texts encoded in one batch.",
+            min=1,
+        ),
+    ] = 32,
+    device: Annotated[
+        str,
+        typer.Option(
+            "--device",
+            help="Embedding inference device, for example cpu or cuda.",
+        ),
+    ] = "cpu",
+) -> None:
+    """Save detailed retrieval results and misses."""
+
+    try:
+        embedding_model = None
+
+        if retriever_type is RetrieverType.DENSE:
+            if not embeddings_path.is_file():
+                raise ValueError(
+                    f"Dense embeddings file does not exist: "
+                    f"{embeddings_path}"
+                )
+
+            if not metadata_path.is_file():
+                raise ValueError(
+                    f"Dense metadata file does not exist: "
+                    f"{metadata_path}"
+                )
+
+            metadata = read_dense_index_metadata(
+                metadata_path,
+            )
+
+            embedding_model = (
+                create_sentence_transformer_embedding_model(
+                    metadata.embedding_model,
+                    batch_size=batch_size,
+                    device=device,
+                )
+            )
+
+        result = run_retrieval_analysis(
+            retriever_type=retriever_type,
+            golden_path=golden_path,
+            chunks_path=chunks_path,
+            output_root=output_root,
+            top_k=top_k,
+            k1=k1,
+            b=b,
+            embeddings_path=(
+                embeddings_path
+                if retriever_type is RetrieverType.DENSE
+                else None
+            ),
+            metadata_path=(
+                metadata_path
+                if retriever_type is RetrieverType.DENSE
+                else None
+            ),
+            embedding_model=embedding_model,
+        )
+    except (ValueError, OSError) as error:
+        typer.secho(
+            f"Retrieval analysis failed: {error}",
+            fg=typer.colors.RED,
+            err=True,
+        )
+        raise typer.Exit(code=1) from error
+
+    typer.secho(
+        "Retrieval analysis completed.",
+        fg=typer.colors.GREEN,
+    )
+    typer.echo(
+        f"Retriever: {result.retriever_type.value}"
+    )
+    typer.echo(f"Top-K: {result.top_k}")
+    typer.echo(f"Queries: {result.query_count}")
+    typer.echo(f"Misses: {result.miss_count}")
+    typer.echo(f"Results: {result.results_path}")
+    typer.echo(f"Misses file: {result.misses_path}")
