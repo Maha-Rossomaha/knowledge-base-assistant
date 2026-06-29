@@ -65,9 +65,8 @@ def build_dense_index_data(
     embeddings = normalize_embeddings(embeddings)
 
     metadata = DenseIndexMetadata(
-        schema_version=1,
-        model_name=embedding_model.model_name,
-        dimension=embedding_model.dimension,
+        schema_version=2,
+        embedding_model=embedding_model.config,
         normalized=True,
         chunks_sha256=chunks_sha256,
         chunk_ids=chunk_ids,

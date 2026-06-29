@@ -25,7 +25,7 @@ class DenseIndex:
                 "Number of embedding rows must equal number of chunks"
             )
 
-        if embeddings.shape[1] != metadata.dimension:
+        if embeddings.shape[1] != metadata.embedding_model.dimension:
             raise ValueError(
                 "Embedding dimension must match metadata dimension"
             )
@@ -39,12 +39,12 @@ class DenseIndex:
                 "Chunk IDs must match metadata chunk IDs in the same order"
             )
 
-        if embedding_model.model_name != metadata.model_name:
+        if embedding_model.model_name != metadata.embedding_model.model_name:
             raise ValueError(
                 "Embedding model name must match metadata model name"
             )
 
-        if embedding_model.dimension != metadata.dimension:
+        if embedding_model.dimension != metadata.embedding_model.dimension:
             raise ValueError(
                 "Embedding model dimension must match metadata dimension"
             )
@@ -72,7 +72,7 @@ class DenseIndex:
         if query_embedding.ndim != 1:
             raise ValueError("Query embedding must be a one-dimensional array")
         
-        if query_embedding.shape[0] != self._metadata.dimension:
+        if query_embedding.shape[0] != self._metadata.embedding_model.dimension:
             raise ValueError("Query embedding dimension must match index dimension")
         
         query_embedding = query_embedding.astype(

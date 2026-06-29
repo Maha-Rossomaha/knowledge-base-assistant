@@ -31,7 +31,7 @@ def read_dense_embeddings(
     if embeddings.shape[0] != len(metadata.chunk_ids):
         raise ValueError("Dense embeddings row count does not match chunk IDs count")
     
-    if embeddings.shape[1] != metadata.dimension:
+    if embeddings.shape[1] != metadata.embedding_model.dimension:
         raise ValueError("Dense embeddings dimension does not match index metadata")
     
     return embeddings  # type: ignore[no-any-return]

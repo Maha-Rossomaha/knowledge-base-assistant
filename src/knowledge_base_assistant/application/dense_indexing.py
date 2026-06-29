@@ -48,7 +48,7 @@ def build_dense_index(
     
     return DenseIndexingResult(
         chunk_count=len(chunks),
-        dimension=metadata.dimension,
+        dimension=metadata.embedding_model.dimension,
         embeddings_path=embeddings_path,
         metadata_path=metadata_path,
     )
