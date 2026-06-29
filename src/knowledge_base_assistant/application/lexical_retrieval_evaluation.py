@@ -1,21 +1,19 @@
 from pathlib import Path
 
-from knowledge_base_assistant.evaluation.metrics import (
-    calculate_query_metrics,
-)
 from knowledge_base_assistant.evaluation.models import (
     QueryEvaluationResult,
     RetrievalEvaluationResult,
-    RetrievedChunkEvaluation,
-)
-from knowledge_base_assistant.evaluation.validation import (
-    validate_golden_queries,
 )
 from knowledge_base_assistant.retrieval.lexical.bm25 import BM25Index
 from knowledge_base_assistant.serialization.jsonl import (
     read_chunks_jsonl,
     read_golden_queries_jsonl,
 )
+from knowledge_base_assistant.application.retrieval_evaluation import (
+    evaluate_retrieval,
+    evaluate_queries,
+)
+
 
 
 def evaluate_bm25_retrieval(
@@ -26,18 +24,8 @@ def evaluate_bm25_retrieval(
     k1: float = 1.5,
     b: float = 0.75,
 ) -> RetrievalEvaluationResult:
-    if top_k < 1:
-        raise ValueError(
-            f"top_k must be at least 1, got {top_k}"
-        )
-
     queries = read_golden_queries_jsonl(golden_path)
     chunks = read_chunks_jsonl(chunks_path)
-
-    validation_result = validate_golden_queries(
-        queries,
-        chunks,
-    )
 
     index = BM25Index.build(
         chunks,
@@ -45,83 +33,13 @@ def evaluate_bm25_retrieval(
         b=b,
     )
 
-    evaluated_query_count = 0
-
-    total_hit_rate = 0.0
-    total_recall = 0.0
-    total_reciprocal_rank = 0.0
-    total_ndcg = 0.0
-
-    for query in queries:
-        if not query.relevant_chunks:
-            continue
-
-        relevance_by_chunk_id = {
-            relevant_chunk.chunk_id: relevant_chunk.relevance
-            for relevant_chunk in query.relevant_chunks
-        }
-
-        search_results = index.search(
-            query.query,
-            top_k=top_k,
-        )
-
-        retrieved_chunk_ids = [
-            result.chunk.chunk_id
-            for result in search_results
-        ]
-
-        query_metrics = calculate_query_metrics(
-            relevance_by_chunk_id,
-            retrieved_chunk_ids,
-            k=top_k,
-        )
-
-        total_hit_rate += query_metrics.hit_rate_at_k
-        total_recall += query_metrics.recall_at_k
-        total_reciprocal_rank += (
-            query_metrics.reciprocal_rank
-        )
-        total_ndcg += query_metrics.ndcg_at_k
-
-        evaluated_query_count += 1
-
-    if evaluated_query_count == 0:
-        return RetrievalEvaluationResult(
-            top_k=top_k,
-            query_count=validation_result.query_count,
-            evaluated_query_count=0,
-            no_answer_query_count=(
-                validation_result.no_answer_query_count
-            ),
-            hit_rate_at_k=0.0,
-            recall_at_k=0.0,
-            mean_reciprocal_rank=0.0,
-            ndcg_at_k=0.0,
-        )
-
-    return RetrievalEvaluationResult(
+    return evaluate_retrieval(
+        queries=queries,
+        chunks=chunks,
+        retriever=index,
         top_k=top_k,
-        query_count=validation_result.query_count,
-        evaluated_query_count=evaluated_query_count,
-        no_answer_query_count=(
-            validation_result.no_answer_query_count
-        ),
-        hit_rate_at_k=(
-            total_hit_rate / evaluated_query_count
-        ),
-        recall_at_k=(
-            total_recall / evaluated_query_count
-        ),
-        mean_reciprocal_rank=(
-            total_reciprocal_rank
-            / evaluated_query_count
-        ),
-        ndcg_at_k=(
-            total_ndcg / evaluated_query_count
-        ),
     )
-
+    
 
 def evaluate_bm25_queries(
     *,
@@ -131,18 +49,8 @@ def evaluate_bm25_queries(
     k1: float = 1.5,
     b: float = 0.75,
 ) -> tuple[QueryEvaluationResult, ...]:
-    if top_k < 1:
-        raise ValueError(
-            f"top_k must be at least 1, got {top_k}"
-        )
-
     queries = read_golden_queries_jsonl(golden_path)
     chunks = read_chunks_jsonl(chunks_path)
-
-    validate_golden_queries(
-        queries,
-        chunks,
-    )
 
     index = BM25Index.build(
         chunks,
@@ -150,73 +58,9 @@ def evaluate_bm25_queries(
         b=b,
     )
 
-    evaluation_results: list[QueryEvaluationResult] = []
-
-    for query in queries:
-        if not query.relevant_chunks:
-            continue
-
-        relevance_by_chunk_id = {
-            relevant_chunk.chunk_id: relevant_chunk.relevance
-            for relevant_chunk in query.relevant_chunks
-        }
-
-        search_results = index.search(
-            query.query,
-            top_k=top_k,
-        )
-
-        retrieved_chunk_ids = [
-            result.chunk.chunk_id
-            for result in search_results
-        ]
-
-        metrics = calculate_query_metrics(
-            relevance_by_chunk_id,
-            retrieved_chunk_ids,
-            k=top_k,
-        )
-
-        retrieved_chunks = tuple(
-            RetrievedChunkEvaluation(
-                chunk_id=result.chunk.chunk_id,
-                rank=result.rank,
-                score=result.score,
-                relevance=relevance_by_chunk_id.get(
-                    result.chunk.chunk_id,
-                    0,
-                ),
-                relative_path=result.chunk.relative_path,
-                section_path=result.chunk.section_path,
-                content=result.chunk.content,
-            )
-            for result in search_results
-        )
-
-        first_relevant_rank = next(
-            (
-                result.rank
-                for result in search_results
-                if result.chunk.chunk_id
-                in relevance_by_chunk_id
-            ),
-            None,
-        )
-
-        evaluation_results.append(
-            QueryEvaluationResult(
-                query_id=query.query_id,
-                query=query.query,
-                relevant_chunk_ids=tuple(
-                    relevance_by_chunk_id
-                ),
-                retrieved_chunks=retrieved_chunks,
-                first_relevant_rank=first_relevant_rank,
-                hit_rate_at_k=metrics.hit_rate_at_k,
-                recall_at_k=metrics.recall_at_k,
-                reciprocal_rank=metrics.reciprocal_rank,
-                ndcg_at_k=metrics.ndcg_at_k,
-            )
-        )
-
-    return tuple(evaluation_results)
+    return evaluate_queries(
+        queries=queries,
+        chunks=chunks,
+        retriever=index,
+        top_k=top_k,
+    )
