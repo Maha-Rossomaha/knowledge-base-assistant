@@ -3,7 +3,7 @@ import json
 from dataclasses import asdict
 from pathlib import Path
 
-from knowledge_base_assistant.application.retrieval_evaluation import (
+from knowledge_base_assistant.application.lexical_retrieval_evaluation import (
     evaluate_bm25_queries,
 )
 

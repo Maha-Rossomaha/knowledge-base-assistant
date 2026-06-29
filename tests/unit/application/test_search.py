@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from knowledge_base_assistant.application.search import (
+from knowledge_base_assistant.application.lexical_search import (
     search_chunks_file,
 )
 from knowledge_base_assistant.domain.models import Chunk

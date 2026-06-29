@@ -5,8 +5,8 @@ import typer
 
 from knowledge_base_assistant.application.golden_validation import validate_golden_files
 from knowledge_base_assistant.application.indexing import build_chunks
-from knowledge_base_assistant.application.retrieval_evaluation import evaluate_bm25_retrieval
-from knowledge_base_assistant.application.search import search_chunks_file
+from knowledge_base_assistant.application.lexical_retrieval_evaluation import evaluate_bm25_retrieval
+from knowledge_base_assistant.application.lexical_search import search_chunks_file
 from knowledge_base_assistant.application.statistics import calculate_chunk_statistics_from_jsonl
 from knowledge_base_assistant.ingestion.chunker import ChunkerConfig
 

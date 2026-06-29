@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from knowledge_base_assistant.application.retrieval_evaluation import (
+from knowledge_base_assistant.application.lexical_retrieval_evaluation import (
     evaluate_bm25_queries,
     evaluate_bm25_retrieval,
 )
