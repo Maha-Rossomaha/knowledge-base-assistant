@@ -26,7 +26,7 @@ class SentenceTransformerEmbeddingModel(EmbeddingModel):
         self._model_name = model_name
         self._batch_size = batch_size 
         self._model = model
-        self._dimension = dimension
+        self._dimension: int = int(dimension)
         
 
     @property
