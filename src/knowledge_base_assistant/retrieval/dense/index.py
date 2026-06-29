@@ -1,9 +1,9 @@
 import numpy as np
 
 from knowledge_base_assistant.domain.models import Chunk
-from knowledge_base_assistant.retrieval.models import SearchResult
 from knowledge_base_assistant.retrieval.dense.embedding import EmbeddingModel
 from knowledge_base_assistant.retrieval.dense.models import DenseIndexMetadata
+from knowledge_base_assistant.retrieval.models import SearchResult
 
 
 class DenseIndex:
@@ -30,8 +30,10 @@ class DenseIndex:
                 "Embedding dimension must match metadata dimension"
             )
 
+        if not metadata.normalized:
+            raise ValueError("Dense index embeddings must be normalized")
+                
         chunk_ids = tuple(chunk.chunk_id for chunk in chunks)
-
         if chunk_ids != metadata.chunk_ids:
             raise ValueError(
                 "Chunk IDs must match metadata chunk IDs in the same order"
