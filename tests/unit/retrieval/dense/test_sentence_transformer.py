@@ -193,3 +193,30 @@ def test_embed_query_returns_embedding_and_passes_expected_arguments(
             },
         ),
     ]
+    
+    
+class FakeSentenceTransformerWithInvalidDimension(
+    FakeSentenceTransformer
+):
+    def get_embedding_dimension(self) -> int | None:
+        return None
+    
+    
+def test_sentence_transformer_embedding_model_rejects_invalid_dimension(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        sentence_transformer_module,
+        "SentenceTransformer",
+        FakeSentenceTransformerWithInvalidDimension,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="Embedding model dimension must be at least 1",
+    ):
+        SentenceTransformerEmbeddingModel(
+            model_name="fake-model",
+            batch_size=16,
+            device="cpu",
+        )
