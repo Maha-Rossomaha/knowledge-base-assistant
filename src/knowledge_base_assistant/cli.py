@@ -31,6 +31,9 @@ from knowledge_base_assistant.retrieval.dense.sentence_transformer import (
 from knowledge_base_assistant.retrieval.dense.serialization import (
     read_dense_index_metadata,
 )
+from knowledge_base_assistant.application.retrieval_comparison import (
+    run_retrieval_comparison,
+)
 
 app = typer.Typer(
     name="copilot",
@@ -1120,3 +1123,72 @@ def retrieval_analyze(
     typer.echo(f"Misses: {result.miss_count}")
     typer.echo(f"Results: {result.results_path}")
     typer.echo(f"Misses file: {result.misses_path}")
+    
+    
+@app.command("retrieval-compare")
+def retrieval_compare(
+    lexical_results_path: Annotated[
+        Path,
+        typer.Argument(
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+            readable=True,
+            resolve_path=True,
+        ),
+    ],
+    dense_results_path: Annotated[
+        Path,
+        typer.Argument(
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+            readable=True,
+            resolve_path=True,
+        ),
+    ],
+    output_dir: Annotated[
+        Path,
+        typer.Option(
+            "--output-dir",
+            file_okay=False,
+            dir_okay=True,
+            resolve_path=True,
+        ),
+    ] = Path("artifacts/evaluation/comparison/top_5"),
+) -> None:
+    """Compare lexical and dense retrieval results."""
+
+    try:
+        result = run_retrieval_comparison(
+            lexical_results_path=lexical_results_path,
+            dense_results_path=dense_results_path,
+            output_dir=output_dir,
+        )
+    except (ValueError, OSError) as error:
+        typer.secho(
+            f"Retrieval comparison failed: {error}",
+            fg=typer.colors.RED,
+            err=True,
+        )
+        raise typer.Exit(code=1) from error
+
+    typer.secho(
+        "Retrieval comparison completed.",
+        fg=typer.colors.GREEN,
+    )
+    typer.echo(
+        f"Dense-only hits: "
+        f"{result.dense_only_hits_count}"
+    )
+    typer.echo(
+        f"Lexical-only hits: "
+        f"{result.lexical_only_hits_count}"
+    )
+    typer.echo(
+        f"Both hit: {result.both_hit_count}"
+    )
+    typer.echo(
+        f"Both miss: {result.both_miss_count}"
+    )
+    typer.echo(f"Output: {output_dir}")
