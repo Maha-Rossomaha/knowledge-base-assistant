@@ -3,10 +3,10 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
-from knowledge_base_assistant.retrieval.dense.models import DenseIndexMetadata
 from knowledge_base_assistant.retrieval.dense.embedding import (
     EmbeddingModelConfig,
 )
+from knowledge_base_assistant.retrieval.dense.models import DenseIndexMetadata
 
 
 def write_dense_index_metadata(
