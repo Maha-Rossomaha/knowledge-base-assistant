@@ -6,53 +6,64 @@ from knowledge_base_assistant.retrieval.dense.models import DenseIndexMetadata
 from knowledge_base_assistant.retrieval.models import SearchResult
 
 
-class DenseIndex:
-    def __init__(
-        self,
-        *,
-        chunks: list[Chunk],
-        embeddings: np.ndarray,
-        metadata: DenseIndexMetadata,
-        embedding_model: EmbeddingModel,
-    ) -> None:
-        if embeddings.ndim != 2:
-            raise ValueError(
-                "Dense embeddings must be a two-dimensional array"
-            )
+def __init__(
+    self,
+    *,
+    chunks: list[Chunk],
+    embeddings: np.ndarray,
+    metadata: DenseIndexMetadata,
+    embedding_model: EmbeddingModel,
+) -> None:
+    if metadata.schema_version != 2:
+        raise ValueError(
+            f"Unsupported dense index schema version: "
+            f"{metadata.schema_version}"
+        )
 
-        if embeddings.shape[0] != len(chunks):
-            raise ValueError(
-                "Number of embedding rows must equal number of chunks"
-            )
+    if embeddings.ndim != 2:
+        raise ValueError(
+            "Dense embeddings must be a two-dimensional array"
+        )
 
-        if embeddings.shape[1] != metadata.embedding_model.dimension:
-            raise ValueError(
-                "Embedding dimension must match metadata dimension"
-            )
+    if embeddings.shape[0] != len(chunks):
+        raise ValueError(
+            "Number of embedding rows must equal number of chunks"
+        )
 
-        if not metadata.normalized:
-            raise ValueError("Dense index embeddings must be normalized")
-                
-        chunk_ids = tuple(chunk.chunk_id for chunk in chunks)
-        if chunk_ids != metadata.chunk_ids:
-            raise ValueError(
-                "Chunk IDs must match metadata chunk IDs in the same order"
-            )
+    if (
+        embeddings.shape[1]
+        != metadata.embedding_model.dimension
+    ):
+        raise ValueError(
+            "Embedding dimension must match metadata dimension"
+        )
 
-        if embedding_model.model_name != metadata.embedding_model.model_name:
-            raise ValueError(
-                "Embedding model name must match metadata model name"
-            )
+    if not metadata.normalized:
+        raise ValueError(
+            "Dense index embeddings must be normalized"
+        )
 
-        if embedding_model.dimension != metadata.embedding_model.dimension:
-            raise ValueError(
-                "Embedding model dimension must match metadata dimension"
-            )
+    chunk_ids = tuple(
+        chunk.chunk_id
+        for chunk in chunks
+    )
 
-        self._chunks = chunks
-        self._embeddings = embeddings
-        self._metadata = metadata
-        self._embedding_model = embedding_model
+    if chunk_ids != metadata.chunk_ids:
+        raise ValueError(
+            "Chunk IDs must match metadata chunk IDs "
+            "in the same order"
+        )
+
+    if embedding_model.config != metadata.embedding_model:
+        raise ValueError(
+            "Embedding model configuration must match "
+            "metadata embedding model configuration"
+        )
+
+    self._chunks = chunks
+    self._embeddings = embeddings
+    self._metadata = metadata
+    self._embedding_model = embedding_model
         
         
     def search(
