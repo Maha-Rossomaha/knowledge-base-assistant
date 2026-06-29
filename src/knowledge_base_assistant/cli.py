@@ -4,6 +4,12 @@ from typing import Annotated
 import typer
 
 from knowledge_base_assistant.application.dense_indexing import build_dense_index
+from knowledge_base_assistant.application.dense_search import (
+    search_dense_index,
+)
+from knowledge_base_assistant.application.embedding_model_factory import (
+    create_sentence_transformer_embedding_model,
+)
 from knowledge_base_assistant.application.golden_validation import validate_golden_files
 from knowledge_base_assistant.application.indexing import build_chunks
 from knowledge_base_assistant.application.lexical_retrieval_evaluation import (
@@ -14,6 +20,9 @@ from knowledge_base_assistant.application.statistics import calculate_chunk_stat
 from knowledge_base_assistant.ingestion.chunker import ChunkerConfig
 from knowledge_base_assistant.retrieval.dense.sentence_transformer import (
     SentenceTransformerEmbeddingModel,
+)
+from knowledge_base_assistant.retrieval.dense.serialization import (
+    read_dense_index_metadata,
 )
 
 app = typer.Typer(
@@ -641,3 +650,160 @@ def dense_index(
     typer.echo(f"Dimension: {result.dimension}")
     typer.echo(f"Embeddings: {result.embeddings_path}")
     typer.echo(f"Metadata: {result.metadata_path}")
+    
+    
+@app.command("dense-search")
+def dense_search(
+    query: Annotated[
+        str,
+        typer.Argument(
+            help="Search query.",
+        ),
+    ],
+    chunks_path: Annotated[
+        Path,
+        typer.Option(
+            "--chunks",
+            help="Path to the chunks JSONL file.",
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+            readable=True,
+            resolve_path=True,
+        ),
+    ] = Path("artifacts/chunks.jsonl"),
+    embeddings_path: Annotated[
+        Path,
+        typer.Option(
+            "--embeddings",
+            help="Path to the dense embeddings NPY file.",
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+            readable=True,
+            resolve_path=True,
+        ),
+    ] = Path("artifacts/dense/embeddings.npy"),
+    metadata_path: Annotated[
+        Path,
+        typer.Option(
+            "--metadata",
+            help="Path to the dense-index metadata JSON file.",
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+            readable=True,
+            resolve_path=True,
+        ),
+    ] = Path("artifacts/dense/metadata.json"),
+    top_k: Annotated[
+        int,
+        typer.Option(
+            "--top-k",
+            help="Maximum number of results.",
+            min=1,
+        ),
+    ] = 5,
+    batch_size: Annotated[
+        int,
+        typer.Option(
+            "--batch-size",
+            help="Number of texts encoded in one batch.",
+            min=1,
+        ),
+    ] = 32,
+    device: Annotated[
+        str,
+        typer.Option(
+            "--device",
+            help="Embedding inference device, for example cpu or cuda.",
+        ),
+    ] = "cpu",
+    content_limit: Annotated[
+        int,
+        typer.Option(
+            "--content-limit",
+            help="Maximum number of content characters to display.",
+            min=0,
+        ),
+    ] = 500,
+) -> None:
+    """Search a pre-built dense index."""
+
+    try:
+        metadata = read_dense_index_metadata(
+            metadata_path,
+        )
+
+        embedding_model = (
+            create_sentence_transformer_embedding_model(
+                metadata.embedding_model,
+                batch_size=batch_size,
+                device=device,
+            )
+        )
+
+        results = search_dense_index(
+            query=query,
+            top_k=top_k,
+            chunks_path=chunks_path,
+            embeddings_path=embeddings_path,
+            metadata_path=metadata_path,
+            embedding_model=embedding_model,
+        )
+    except (ValueError, OSError) as error:
+        typer.secho(
+            f"Dense search failed: {error}",
+            fg=typer.colors.RED,
+            err=True,
+        )
+        raise typer.Exit(code=1) from error
+
+    if not results:
+        typer.echo("No matching chunks found.")
+        return
+
+    for result in results:
+        section = (
+            " > ".join(result.chunk.section_path)
+            if result.chunk.section_path
+            else "<no heading>"
+        )
+
+        content = result.chunk.content
+
+        if content_limit == 0:
+            content = ""
+        elif len(content) > content_limit:
+            content = (
+                content[:content_limit].rstrip()
+                + "..."
+            )
+
+        typer.echo(
+            f"{result.rank}. Score: {result.score:.4f}"
+        )
+        typer.echo(
+            f"   Path: {result.chunk.relative_path}"
+        )
+        typer.echo(
+            f"   Section: {section}"
+        )
+        typer.echo(
+            f"   Lines: "
+            f"{result.chunk.start_line}-"
+            f"{result.chunk.end_line}"
+        )
+        typer.echo(
+            f"   Chunk ID: {result.chunk.chunk_id}"
+        )
+        typer.echo("   Content:")
+        typer.echo(
+            "\n".join(
+                f"     {line}"
+                for line in content.splitlines()
+            )
+        )
+
+        if result.rank != len(results):
+            typer.echo("")
