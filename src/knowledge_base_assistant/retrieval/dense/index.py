@@ -101,3 +101,7 @@ class DenseIndex:
             for rank, index in enumerate(best_indices, start=1)
         ]
             
+            
+    @property
+    def chunks(self) -> tuple[Chunk, ...]:
+        return tuple(self._chunks)
