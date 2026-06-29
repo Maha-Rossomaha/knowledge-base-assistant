@@ -400,3 +400,44 @@ def _make_chunk(
         end_line=2,
         content_hash=f"content-hash-{chunk_index}",
     )
+    
+    
+def test_dense_index_rejects_not_normalized_metadata() -> None:
+    chunks = [
+        _make_chunk("chunk-1", 0),
+        _make_chunk("chunk-2", 1),
+        _make_chunk("chunk-3", 2),
+    ]
+
+    embeddings = np.array(
+        [
+            [1.0, 0.0, 0.0],
+            [0.8, 0.6, 0.0],
+            [0.0, 1.0, 0.0],
+        ],
+        dtype=np.float32,
+    )
+
+    metadata = DenseIndexMetadata(
+        schema_version=1,
+        model_name="fake-model",
+        dimension=3,
+        normalized=False,
+        chunks_sha256="test-sha256",
+        chunk_ids=(
+            "chunk-1",
+            "chunk-2",
+            "chunk-3",
+        ),
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="Dense index embeddings must be normalized",
+    ):
+        DenseIndex(
+            chunks=chunks,
+            embeddings=embeddings,
+            metadata=metadata,
+            embedding_model=FakeEmbeddingModel(),
+        )
