@@ -185,7 +185,7 @@ def test_build_dense_index_writes_expected_metadata(
 
     metadata = read_dense_index_metadata(metadata_path)
 
-    assert metadata.schema_version == 1
+    assert metadata.schema_version == 2
     assert metadata.embedding_model.model_name == "fake-model"
     assert metadata.embedding_model.dimension == 3
     assert metadata.normalized is True

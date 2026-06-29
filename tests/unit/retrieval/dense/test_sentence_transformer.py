@@ -72,6 +72,9 @@ def test_sentence_transformer_embedding_model_initializes(
     assert model.config.query_prefix == "query: "
     assert model.config.document_prefix == "passage: "
 
+    assert model.model_name == "fake-model"
+    assert model.dimension == 3
+
 
 @pytest.mark.parametrize(
     "model_name",

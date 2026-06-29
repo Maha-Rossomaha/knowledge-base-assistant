@@ -1,17 +1,29 @@
+from pathlib import Path
+
 import numpy as np
 import pytest
 
+from knowledge_base_assistant.retrieval.dense.embedding import (
+    EmbeddingModelConfig,
+)
 from knowledge_base_assistant.retrieval.dense.index_storage import (
     read_dense_embeddings,
     write_dense_embeddings,
 )
-from knowledge_base_assistant.retrieval.dense.models import DenseIndexMetadata
+from knowledge_base_assistant.retrieval.dense.models import (
+    DenseIndexMetadata,
+)
 
 
 def test_write_dense_embeddings_creates_parent_directories(
-    tmp_path,
+    tmp_path: Path,
 ) -> None:
-    path = tmp_path / "nested" / "dense" / "embeddings.npy"
+    path = (
+        tmp_path
+        / "nested"
+        / "dense"
+        / "embeddings.npy"
+    )
     embeddings = np.array(
         [
             [1.0, 2.0],
@@ -20,13 +32,16 @@ def test_write_dense_embeddings_creates_parent_directories(
         dtype=np.float32,
     )
 
-    write_dense_embeddings(embeddings, path)
+    write_dense_embeddings(
+        embeddings,
+        path,
+    )
 
     assert path.is_file()
 
 
 def test_dense_embeddings_round_trip(
-    tmp_path,
+    tmp_path: Path,
 ) -> None:
     path = tmp_path / "embeddings.npy"
     embeddings = np.array(
@@ -38,11 +53,20 @@ def test_dense_embeddings_round_trip(
     )
     metadata = _make_metadata(
         dimension=3,
-        chunk_ids=("chunk-1", "chunk-2"),
+        chunk_ids=(
+            "chunk-1",
+            "chunk-2",
+        ),
     )
 
-    write_dense_embeddings(embeddings, path)
-    loaded_embeddings = read_dense_embeddings(path, metadata)
+    write_dense_embeddings(
+        embeddings,
+        path,
+    )
+    loaded_embeddings = read_dense_embeddings(
+        path,
+        metadata,
+    )
 
     np.testing.assert_array_equal(
         loaded_embeddings,
@@ -51,7 +75,7 @@ def test_dense_embeddings_round_trip(
 
 
 def test_write_dense_embeddings_converts_float64_to_float32(
-    tmp_path,
+    tmp_path: Path,
 ) -> None:
     path = tmp_path / "embeddings.npy"
     embeddings = np.array(
@@ -62,7 +86,10 @@ def test_write_dense_embeddings_converts_float64_to_float32(
         dtype=np.float64,
     )
 
-    write_dense_embeddings(embeddings, path)
+    write_dense_embeddings(
+        embeddings,
+        path,
+    )
 
     loaded_embeddings = np.load(
         path,
@@ -73,7 +100,7 @@ def test_write_dense_embeddings_converts_float64_to_float32(
 
 
 def test_write_dense_embeddings_preserves_float32(
-    tmp_path,
+    tmp_path: Path,
 ) -> None:
     path = tmp_path / "embeddings.npy"
     embeddings = np.array(
@@ -83,7 +110,10 @@ def test_write_dense_embeddings_preserves_float32(
         dtype=np.float32,
     )
 
-    write_dense_embeddings(embeddings, path)
+    write_dense_embeddings(
+        embeddings,
+        path,
+    )
 
     loaded_embeddings = np.load(
         path,
@@ -100,14 +130,23 @@ def test_write_dense_embeddings_preserves_float32(
 @pytest.mark.parametrize(
     "embeddings",
     [
-        np.array([1.0, 2.0], dtype=np.float32),
-        np.array(1.0, dtype=np.float32),
-        np.zeros((1, 2, 3), dtype=np.float32),
+        np.array(
+            [1.0, 2.0],
+            dtype=np.float32,
+        ),
+        np.array(
+            1.0,
+            dtype=np.float32,
+        ),
+        np.zeros(
+            (1, 2, 3),
+            dtype=np.float32,
+        ),
     ],
 )
 def test_write_dense_embeddings_rejects_non_two_dimensional_array(
-    tmp_path,
-    embeddings,
+    tmp_path: Path,
+    embeddings: np.ndarray,
 ) -> None:
     path = tmp_path / "embeddings.npy"
 
@@ -115,23 +154,38 @@ def test_write_dense_embeddings_rejects_non_two_dimensional_array(
         ValueError,
         match="Dense embeddings must be a two-dimensional matrix",
     ):
-        write_dense_embeddings(embeddings, path)
+        write_dense_embeddings(
+            embeddings,
+            path,
+        )
 
 
 @pytest.mark.parametrize(
     "embeddings",
     [
-        np.array([1.0, 2.0], dtype=np.float32),
-        np.array(1.0, dtype=np.float32),
-        np.zeros((1, 2, 3), dtype=np.float32),
+        np.array(
+            [1.0, 2.0],
+            dtype=np.float32,
+        ),
+        np.array(
+            1.0,
+            dtype=np.float32,
+        ),
+        np.zeros(
+            (1, 2, 3),
+            dtype=np.float32,
+        ),
     ],
 )
 def test_read_dense_embeddings_rejects_non_two_dimensional_array(
-    tmp_path,
-    embeddings,
+    tmp_path: Path,
+    embeddings: np.ndarray,
 ) -> None:
     path = tmp_path / "embeddings.npy"
-    np.save(path, embeddings)
+    np.save(
+        path,
+        embeddings,
+    )
 
     metadata = _make_metadata(
         dimension=2,
@@ -142,11 +196,14 @@ def test_read_dense_embeddings_rejects_non_two_dimensional_array(
         ValueError,
         match="Dense embeddings must be a two-dimensional matrix",
     ):
-        read_dense_embeddings(path, metadata)
+        read_dense_embeddings(
+            path,
+            metadata,
+        )
 
 
 def test_read_dense_embeddings_rejects_wrong_row_count(
-    tmp_path,
+    tmp_path: Path,
 ) -> None:
     path = tmp_path / "embeddings.npy"
     embeddings = np.array(
@@ -156,7 +213,10 @@ def test_read_dense_embeddings_rejects_wrong_row_count(
         ],
         dtype=np.float32,
     )
-    np.save(path, embeddings)
+    np.save(
+        path,
+        embeddings,
+    )
 
     metadata = _make_metadata(
         dimension=2,
@@ -165,13 +225,19 @@ def test_read_dense_embeddings_rejects_wrong_row_count(
 
     with pytest.raises(
         ValueError,
-        match="Dense embeddings row count does not match chunk IDs count",
+        match=(
+            "Dense embeddings row count "
+            "does not match chunk IDs count"
+        ),
     ):
-        read_dense_embeddings(path, metadata)
+        read_dense_embeddings(
+            path,
+            metadata,
+        )
 
 
 def test_read_dense_embeddings_rejects_wrong_dimension(
-    tmp_path,
+    tmp_path: Path,
 ) -> None:
     path = tmp_path / "embeddings.npy"
     embeddings = np.array(
@@ -181,22 +247,34 @@ def test_read_dense_embeddings_rejects_wrong_dimension(
         ],
         dtype=np.float32,
     )
-    np.save(path, embeddings)
+    np.save(
+        path,
+        embeddings,
+    )
 
     metadata = _make_metadata(
         dimension=3,
-        chunk_ids=("chunk-1", "chunk-2"),
+        chunk_ids=(
+            "chunk-1",
+            "chunk-2",
+        ),
     )
 
     with pytest.raises(
         ValueError,
-        match="Dense embeddings dimension does not match index metadata",
+        match=(
+            "Dense embeddings dimension "
+            "does not match index metadata"
+        ),
     ):
-        read_dense_embeddings(path, metadata)
+        read_dense_embeddings(
+            path,
+            metadata,
+        )
 
 
 def test_read_dense_embeddings_returns_numpy_array(
-    tmp_path,
+    tmp_path: Path,
 ) -> None:
     path = tmp_path / "embeddings.npy"
     embeddings = np.array(
@@ -205,7 +283,10 @@ def test_read_dense_embeddings_returns_numpy_array(
         ],
         dtype=np.float32,
     )
-    np.save(path, embeddings)
+    np.save(
+        path,
+        embeddings,
+    )
 
     metadata = _make_metadata(
         dimension=2,
@@ -217,18 +298,24 @@ def test_read_dense_embeddings_returns_numpy_array(
         metadata,
     )
 
-    assert isinstance(loaded_embeddings, np.ndarray)
+    assert isinstance(
+        loaded_embeddings,
+        np.ndarray,
+    )
 
 
 def test_read_dense_embeddings_accepts_empty_matrix(
-    tmp_path,
+    tmp_path: Path,
 ) -> None:
     path = tmp_path / "embeddings.npy"
     embeddings = np.empty(
         (0, 3),
         dtype=np.float32,
     )
-    np.save(path, embeddings)
+    np.save(
+        path,
+        embeddings,
+    )
 
     metadata = _make_metadata(
         dimension=3,
@@ -249,9 +336,14 @@ def _make_metadata(
     chunk_ids: tuple[str, ...],
 ) -> DenseIndexMetadata:
     return DenseIndexMetadata(
-        schema_version=1,
-        model_name="test-model",
-        dimension=dimension,
+        schema_version=2,
+        embedding_model=EmbeddingModelConfig(
+            provider="sentence-transformers",
+            model_name="test-model",
+            dimension=dimension,
+            query_prefix="query: ",
+            document_prefix="passage: ",
+        ),
         normalized=True,
         chunks_sha256="chunks-hash",
         chunk_ids=chunk_ids,
