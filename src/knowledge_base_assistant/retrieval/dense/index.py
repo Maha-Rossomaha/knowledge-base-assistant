@@ -69,7 +69,7 @@ class DenseIndex:
         query_embedding = self._embedding_model.embed_query(query=query)
         
         if query_embedding.ndim != 1:
-            raise ValueError("Query must be a one-dimensional array")
+            raise ValueError("Query embedding must be a one-dimensional array")
         
         if query_embedding.shape[0] != self._metadata.dimension:
             raise ValueError("Query embedding dimension must match index dimension")
@@ -78,6 +78,9 @@ class DenseIndex:
             np.float32,
             copy=False,
         )
+        
+        if not np.all(np.isfinite(query_embedding)):
+            raise ValueError("Query embedding must contain only finite values")
 
         norm = np.linalg.norm(query_embedding)
 
