@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import cast
 
 import pytest
 
@@ -211,3 +212,40 @@ def _make_result(
             else 0.0
         ),
     )
+    
+
+def test_run_retrieval_analysis_rejects_invalid_top_k(
+    tmp_path: Path,
+) -> None:
+    with pytest.raises(
+        ValueError,
+        match="top_k must be at least 1, got 0",
+    ):
+        module.run_retrieval_analysis(
+            retriever_type=module.RetrieverType.LEXICAL,
+            golden_path=Path("golden.jsonl"),
+            chunks_path=Path("chunks.jsonl"),
+            output_root=tmp_path,
+            top_k=0,
+        )
+
+
+def test_run_retrieval_analysis_rejects_unsupported_retriever(
+    tmp_path: Path,
+) -> None:
+    unsupported = cast(
+        module.RetrieverType,
+        "unsupported",
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="Unsupported retriever type: unsupported",
+    ):
+        module.run_retrieval_analysis(
+            retriever_type=unsupported,
+            golden_path=Path("golden.jsonl"),
+            chunks_path=Path("chunks.jsonl"),
+            output_root=tmp_path,
+            top_k=5,
+        )
