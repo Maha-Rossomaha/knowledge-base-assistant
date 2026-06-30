@@ -23,6 +23,9 @@ from knowledge_base_assistant.application.retrieval_analysis import (
     RetrieverType,
     run_retrieval_analysis,
 )
+from knowledge_base_assistant.application.retrieval_comparison import (
+    run_retrieval_comparison,
+)
 from knowledge_base_assistant.application.statistics import calculate_chunk_statistics_from_jsonl
 from knowledge_base_assistant.ingestion.chunker import ChunkerConfig
 from knowledge_base_assistant.retrieval.dense.sentence_transformer import (
@@ -30,9 +33,6 @@ from knowledge_base_assistant.retrieval.dense.sentence_transformer import (
 )
 from knowledge_base_assistant.retrieval.dense.serialization import (
     read_dense_index_metadata,
-)
-from knowledge_base_assistant.application.retrieval_comparison import (
-    run_retrieval_comparison,
 )
 
 app = typer.Typer(
