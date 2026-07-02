@@ -26,6 +26,9 @@ from knowledge_base_assistant.application.retrieval_analysis import (
 from knowledge_base_assistant.application.retrieval_comparison import (
     run_retrieval_comparison,
 )
+from knowledge_base_assistant.application.retrieval_error_report import (
+    generate_retrieval_error_report,
+)
 from knowledge_base_assistant.application.statistics import calculate_chunk_statistics_from_jsonl
 from knowledge_base_assistant.ingestion.chunker import ChunkerConfig
 from knowledge_base_assistant.retrieval.dense.sentence_transformer import (
@@ -1192,3 +1195,126 @@ def retrieval_compare(
         f"Both miss: {result.both_miss_count}"
     )
     typer.echo(f"Output: {output_dir}")
+    
+    
+@app.command("retrieval-report")
+def retrieval_report(
+    golden_path: Annotated[
+        Path,
+        typer.Argument(
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+            readable=True,
+            resolve_path=True,
+        ),
+    ],
+    lexical_results_path: Annotated[
+        Path,
+        typer.Argument(
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+            readable=True,
+            resolve_path=True,
+        ),
+    ],
+    dense_results_path: Annotated[
+        Path,
+        typer.Argument(
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+            readable=True,
+            resolve_path=True,
+        ),
+    ],
+    metadata_path: Annotated[
+        Path,
+        typer.Option(
+            "--metadata",
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+            readable=True,
+            resolve_path=True,
+        ),
+    ] = Path("artifacts/dense/metadata.json"),
+    output_root: Annotated[
+        Path,
+        typer.Option(
+            "--output-root",
+            file_okay=False,
+            dir_okay=True,
+            resolve_path=True,
+        ),
+    ] = Path(
+        "artifacts/evaluation/comparison"
+    ),
+    top_k: Annotated[
+        int,
+        typer.Option(
+            "--top-k",
+            min=1,
+        ),
+    ] = 5,
+    content_limit: Annotated[
+        int,
+        typer.Option(
+            "--content-limit",
+            min=0,
+            help=(
+                "Maximum content characters shown "
+                "for each retrieved chunk."
+            ),
+        ),
+    ] = 1_500,
+) -> None:
+    """Generate a Markdown draft for manual error analysis."""
+
+    try:
+        result = generate_retrieval_error_report(
+            golden_path=golden_path,
+            lexical_results_path=(
+                lexical_results_path
+            ),
+            dense_results_path=dense_results_path,
+            metadata_path=metadata_path,
+            output_root=output_root,
+            top_k=top_k,
+            content_limit=content_limit,
+        )
+    except (ValueError, OSError) as error:
+        typer.secho(
+            f"Retrieval report failed: {error}",
+            fg=typer.colors.RED,
+            err=True,
+        )
+        raise typer.Exit(code=1) from error
+
+    typer.secho(
+        "Retrieval error report generated.",
+        fg=typer.colors.GREEN,
+    )
+    typer.echo(
+        f"Queries: {result.total_query_count}"
+    )
+    typer.echo(
+        "Answerable queries: "
+        f"{result.answerable_query_count}"
+    )
+    typer.echo(
+        "Dense-only hits: "
+        f"{result.dense_only_hits_count}"
+    )
+    typer.echo(
+        "Lexical-only hits: "
+        f"{result.lexical_only_hits_count}"
+    )
+    typer.echo(
+        f"Both hit: {result.both_hit_count}"
+    )
+    typer.echo(
+        f"Both miss: {result.both_miss_count}"
+    )
+    typer.echo(f"Output: {result.output_path}")
